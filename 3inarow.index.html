@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Лабиринт Конфет</title>
+  <title>Конфетный Лабиринт</title>
   <style>
     * {
       margin: 0;
@@ -19,7 +19,7 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      padding: 16px;
+      padding: 12px;
     }
 
     #app {
@@ -31,29 +31,26 @@
     .screen.active { display: block; }
 
     /* ========== КАРТА УРОВНЕЙ (ЗМЕЙКА) ========== */
-    #map-screen {
-      text-align: center;
-    }
-
     #map-screen h1 {
+      text-align: center;
       color: #d62828;
-      margin-bottom: 20px;
-      font-size: 24px;
+      margin-bottom: 18px;
+      font-size: 22px;
     }
 
     #maze-path {
       position: relative;
-      height: 300px;
+      height: 280px;
       background: #f9f9f9;
       border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
     .level-node {
       position: absolute;
-      width: 44px;
-      height: 44px;
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       display: flex;
       justify-content: center;
@@ -61,7 +58,7 @@
       font-weight: bold;
       color: white;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       transition: transform 0.2s;
     }
 
@@ -69,18 +66,18 @@
       transform: scale(1.1);
     }
 
-    .level-node.locked { background: #ccc; cursor: not-allowed; }
+    .level-node.locked { background: #bbb; cursor: not-allowed; }
     .level-node.unlocked { background: #4caf50; }
     .level-node.current { background: #e63946; }
 
-    /* ========== ИГРА ========== */
+    /* ========== ИГРОВОЙ ЭКРАН ========== */
     #game-ui {
       display: flex;
       justify-content: space-between;
       color: #d62828;
       font-weight: bold;
-      margin-bottom: 12px;
-      font-size: 16px;
+      margin-bottom: 10px;
+      font-size: 15px;
     }
 
     #game-board {
@@ -111,8 +108,18 @@
     }
 
     .cell.selected {
-      transform: scale(0.9);
+      transform: scale(0.88);
       box-shadow: 0 0 0 3px #e63946;
+    }
+
+    #instructions {
+      background: #fff8f8;
+      border-left: 3px solid #e63946;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: #555;
+      margin-top: 10px;
+      border-radius: 0 6px 6px 0;
     }
 
     #restart-btn {
@@ -136,21 +143,21 @@
 
     #win-screen h2 {
       color: #2e7d32;
-      margin-bottom: 16px;
-      font-size: 22px;
+      margin-bottom: 14px;
+      font-size: 21px;
     }
 
-    .stars {
-      font-size: 28px;
+    .coins {
+      font-size: 26px;
       margin: 10px 0;
-      color: gold;
+      color: #ffd700;
     }
 
     .btn {
       display: block;
       width: 100%;
       padding: 12px;
-      margin: 12px 0;
+      margin: 10px 0;
       border: none;
       border-radius: 30px;
       font-weight: bold;
@@ -164,45 +171,60 @@
 </head>
 <body>
   <div id="app">
-    <!-- КАРТА -->
+    <!-- КАРТА УРОВНЕЙ -->
     <div id="map-screen" class="screen active">
-      <h1>🧭 Лабиринт Конфет</h1>
+      <h1>🧭 Конфетный Лабиринт</h1>
       <div id="maze-path"></div>
     </div>
 
-    <!-- ИГРА -->
+    <!-- ИГРОВОЙ ЭКРАН -->
     <div id="game-screen" class="screen">
       <div id="game-ui">
-        <div>Собрано: <span id="collected">0</span>/<span id="target">30</span></div>
+        <div><span id="target-type">🍫</span>: <span id="collected">0</span>/<span id="target">30</span></div>
         <div>Ходы: <span id="moves">45</span></div>
         <div>Ур: <span id="level-num">1</span></div>
       </div>
       <div id="game-board"></div>
+      <div id="instructions">
+        Собери нужное количество указанной конфетки!<br>
+        Обменивай соседние конфетки, чтобы создавать ряды из 3+.
+      </div>
       <button id="restart-btn">🔄 Начать заново</button>
     </div>
 
-    <!-- ПОБЕДА -->
+    <!-- ЭКРАН ПОБЕДЫ -->
     <div id="win-screen" class="screen">
       <h2>🎉 Уровень пройден!</h2>
-      <div class="stars">⭐⭐⭐⭐⭐</div>
-      <p>+5 звёзд за прохождение!</p>
+      <div class="coins">🪙🪙🪙🪙🪙</div>
+      <p>+5 монеток за прохождение!</p>
       <button class="btn btn-next" id="btn-next">▶ Следующий уровень</button>
       <button class="btn btn-map" id="btn-map">🗺️ Вернуться на карту</button>
     </div>
   </div>
 
   <script>
-    // ====== НАСТРОЙКИ ======
+    // ====== КОНФИГУРАЦИЯ ======
     const CANDIES = ['🍭', '🍬', '🍫', '🍩', '🍪', '🧁'];
-    const TARGETS = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165]; // нужно уничтожить
-    const MOVES_PER_LEVEL = 45; // всегда 45 ходов
+    const LEVELS_CONFIG = [
+      { target: 30, type: '🍫', name: 'шоколадки' },
+      { target: 40, type: '🍭', name: 'леденцы' },
+      { target: 50, type: '🍬', name: 'конфеты' },
+      { target: 60, type: '🍩', name: 'пончики' },
+      { target: 70, type: null, name: 'любые конфеты' },
+      { target: 75, type: null, name: 'любые конфеты' },
+      { target: 80, type: null, name: 'любые конфеты' },
+      { target: 85, type: null, name: 'любые конфеты' },
+      { target: 90, type: null, name: 'любые конфеты' },
+      { target: 95, type: null, name: 'любые конфеты' }
+    ];
+    const MOVES = 45;
     const BOARD_SIZE = 8;
-    const TOTAL_LEVELS = 10;
+    const TOTAL_LEVELS = LEVELS_CONFIG.length;
 
-    // ====== ГЛОБАЛЬНЫЕ ======
+    // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
     let currentLevel = 1;
     let collected = 0;
-    let movesLeft = MOVES_PER_LEVEL;
+    let movesLeft = MOVES;
     let selectedCell = null;
     let gameActive = true;
     let unlockedLevels = JSON.parse(localStorage.getItem('unlockedLevels')) || [1];
@@ -212,13 +234,15 @@
     const gameBoardEl = document.getElementById('game-board');
     const collectedEl = document.getElementById('collected');
     const targetEl = document.getElementById('target');
+    const targetTypeEl = document.getElementById('target-type');
     const movesEl = document.getElementById('moves');
     const levelNumEl = document.getElementById('level-num');
+    const instructionsEl = document.getElementById('instructions');
     const restartBtn = document.getElementById('restart-btn');
     const btnNext = document.getElementById('btn-next');
     const btnMap = document.getElementById('btn-map');
 
-    // ====== КАРТА ЗМЕЙКА ======
+    // ====== КАРТА УРОВНЕЙ (ЗМЕЙКА) ======
     function drawMazeMap() {
       mazePath.innerHTML = '';
       const rows = 3;
@@ -239,13 +263,14 @@
           const y = 30 + r * dy;
 
           const node = document.createElement('div');
-          node.className = `level-node ${level <= Math.max(...unlockedLevels) ? (level === currentLevel ? 'current' : 'unlocked') : 'locked'}`;
+          const status = level <= Math.max(...unlockedLevels) ? (level === currentLevel ? 'current' : 'unlocked') : 'locked';
+          node.className = `level-node ${status}`;
           node.textContent = level;
-          if (!node.classList.contains('locked')) {
+          if (status !== 'locked') {
             node.onclick = () => startLevel(level);
           }
-          node.style.left = (x - 22) + 'px';
-          node.style.top = (y - 22) + 'px';
+          node.style.left = (x - 21) + 'px';
+          node.style.top = (y - 21) + 'px';
           mazePath.appendChild(node);
           level++;
         }
@@ -253,32 +278,35 @@
       }
     }
 
-    // ====== ИГРА ======
+    // ====== ЗАПУСК УРОВНЯ ======
     function startLevel(level) {
       currentLevel = level;
-      const target = TARGETS[level - 1] || TARGETS[TARGETS.length - 1];
+      const cfg = LEVELS_CONFIG[level - 1];
       collected = 0;
-      movesLeft = MOVES_PER_LEVEL;
+      movesLeft = MOVES;
 
       collectedEl.textContent = '0';
-      targetEl.textContent = target;
+      targetEl.textContent = cfg.target;
+      targetTypeEl.textContent = cfg.type || '🍬';
       movesEl.textContent = movesLeft;
       levelNumEl.textContent = level;
+      instructionsEl.innerHTML = `Собери <b>${cfg.target}</b> ${cfg.name}!`;
 
       initBoard();
       showScreen('game-screen');
     }
 
+    // ====== ИНИЦИАЛИЗАЦИЯ ДОСКИ ======
     function initBoard() {
       window.board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
 
       // Камни с 5 уровня
       if (currentLevel >= 5) {
-        const count = 2 * (currentLevel - 4); // 2, 4, 6...
+        const stoneCount = 2 * (currentLevel - 4);
         const positions = [];
         for (let y = 1; y < BOARD_SIZE - 1; y += 2) {
           for (let x = 1; x < BOARD_SIZE - 1; x += 2) {
-            if (positions.length < count) positions.push([x, y]);
+            if (positions.length < stoneCount) positions.push([x, y]);
           }
         }
         for (const [x, y] of positions) {
@@ -286,6 +314,7 @@
         }
       }
 
+      // Заполняем конфетами
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
           if (window.board[y][x] !== '🪨') {
@@ -328,6 +357,7 @@
       }
     }
 
+    // ====== ОБРАБОТКА КЛИКОВ ======
     function handleCellClick(e) {
       if (!gameActive) return;
       const x = +e.target.dataset.x;
@@ -344,21 +374,40 @@
         const dx = Math.abs(x - x1);
         const dy = Math.abs(y - y1);
         if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+          const item1 = window.board[y1][x1];
+          const item2 = window.board[y][x];
+
           // Обмен
-          [window.board[y][x], window.board[y1][x1]] = [window.board[y1][x1], window.board[y][x]];
+          window.board[y][x] = item1;
+          window.board[y1][x1] = item2;
           renderBoard();
 
+          let shouldConsumeMove = true;
+
+          // Активация спец. элементов
+          if (item1 === '💣' || item2 === '💣' ||
+              item1 === '➡️' || item2 === '➡️' ||
+              item1 === '⬇️' || item2 === '⬇️' ||
+              item1 === '✨' || item2 === '✨') {
+            shouldConsumeMove = activateSpecial(x, y, x1, y1);
+          }
+
           if (hasMatches()) {
-            movesLeft--;
-            movesEl.textContent = movesLeft;
-            setTimeout(processTurn, 250);
+            if (shouldConsumeMove) {
+              movesLeft--;
+              movesEl.textContent = movesLeft;
+            }
+            setTimeout(processTurn, 300);
             selectedCell = null;
             return;
           }
 
           // Откат
-          [window.board[y][x], window.board[y1][x1]] = [window.board[y1][x1], window.board[y][x]];
-          renderBoard();
+          if (shouldConsumeMove) {
+            window.board[y][x] = item2;
+            window.board[y1][x1] = item1;
+            renderBoard();
+          }
         }
         selectedCell = null;
       }
@@ -368,68 +417,257 @@
       }
     }
 
+    // ====== СПЕЦ. ЭЛЕМЕНТЫ ======
+    function activateSpecial(x, y, x1, y1) {
+      const a = window.board[y][x];
+      const b = window.board[y1][x1];
+
+      // Радужная
+      if (a === '✨' || b === '✨') {
+        const other = a === '✨' ? b : a;
+        if (CANDIES.includes(other)) {
+          let count = 0;
+          for (let yy = 0; yy < BOARD_SIZE; yy++) {
+            for (let xx = 0; xx < BOARD_SIZE; xx++) {
+              if (window.board[yy][xx] === other) {
+                window.board[yy][xx] = null;
+                count++;
+              }
+            }
+          }
+          addCollected(count, other);
+        }
+        window.board[a === '✨' ? y : y1][a === '✨' ? x : x1] = null;
+        return true;
+      }
+
+      // Бомба
+      if (a === '💣') {
+        explodeArea(x, y);
+        window.board[y][x] = null;
+        return true;
+      }
+      if (b === '💣') {
+        explodeArea(x1, y1);
+        window.board[y1][x1] = null;
+        return true;
+      }
+
+      // Стрелки
+      if (a === '➡️') {
+        explodeRow(y);
+        window.board[y][x] = null;
+        return true;
+      }
+      if (a === '⬇️') {
+        explodeColumn(x);
+        window.board[y][x] = null;
+        return true;
+      }
+      if (b === '➡️') {
+        explodeRow(y1);
+        window.board[y1][x1] = null;
+        return true;
+      }
+      if (b === '⬇️') {
+        explodeColumn(x1);
+        window.board[y1][x1] = null;
+        return true;
+      }
+
+      return false;
+    }
+
+    function explodeArea(cx, cy) {
+      let count = 0;
+      const targetType = LEVELS_CONFIG[currentLevel - 1].type;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const x = cx + dx;
+          const y = cy + dy;
+          if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && window.board[y][x] !== '🪨') {
+            if (window.board[y][x] !== null) {
+              if (targetType === null || window.board[y][x] === targetType) {
+                count++;
+              }
+              window.board[y][x] = null;
+            }
+          }
+        }
+      }
+      addCollected(count, targetType);
+    }
+
+    function explodeRow(row) {
+      let count = 0;
+      const targetType = LEVELS_CONFIG[currentLevel - 1].type;
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        if (window.board[row][x] !== '🪨' && window.board[row][x] !== null) {
+          if (targetType === null || window.board[row][x] === targetType) {
+            count++;
+          }
+          window.board[row][x] = null;
+        }
+      }
+      addCollected(count, targetType);
+    }
+
+    function explodeColumn(col) {
+      let count = 0;
+      const targetType = LEVELS_CONFIG[currentLevel - 1].type;
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        if (window.board[y][col] !== '🪨' && window.board[y][col] !== null) {
+          if (targetType === null || window.board[y][col] === targetType) {
+            count++;
+          }
+          window.board[y][col] = null;
+        }
+      }
+      addCollected(count, targetType);
+    }
+
+    function addCollected(count, type) {
+      const cfg = LEVELS_CONFIG[currentLevel - 1];
+      if (cfg.type === null || type === cfg.type) {
+        collected += count;
+        collectedEl.textContent = collected;
+        if (collected >= cfg.target) {
+          completeLevel();
+        }
+      }
+    }
+
+    // ====== МЕХАНИКА ИГРЫ ======
     function hasMatches() {
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE - 2; x++) {
-          if (window.board[y][x] !== '🪨' &&
-              window.board[y][x] === window.board[y][x+1] &&
-              window.board[y][x] === window.board[y][x+2]) return true;
+          if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y][x+1] && window.board[y][x] === window.board[y][x+2]) {
+            return true;
+          }
         }
       }
       for (let x = 0; x < BOARD_SIZE; x++) {
         for (let y = 0; y < BOARD_SIZE - 2; y++) {
-          if (window.board[y][x] !== '🪨' &&
-              window.board[y][x] === window.board[y+1][x] &&
-              window.board[y][x] === window.board[y+2][x]) return true;
+          if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y+1][x] && window.board[y][x] === window.board[y+2][x]) {
+            return true;
+          }
         }
       }
       return false;
     }
 
-    function processTurn() {
-      const toRemove = new Set();
+    function findMatches() {
+      const matches = [];
 
       // Горизонтальные
       for (let y = 0; y < BOARD_SIZE; y++) {
-        for (let x = 0; x < BOARD_SIZE - 2; x++) {
-          if (window.board[y][x] !== '🪨' &&
-              window.board[y][x] === window.board[y][x+1] &&
-              window.board[y][x] === window.board[y][x+2]) {
-            let end = x + 2;
-            while (end + 1 < BOARD_SIZE && window.board[y][end + 1] === window.board[y][x]) end++;
-            for (let i = x; i <= end; i++) toRemove.add(`${i},${y}`);
-            x = end;
+        let count = 1;
+        let start = 0;
+        for (let x = 1; x < BOARD_SIZE; x++) {
+          if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y][x-1]) {
+            count++;
+          } else {
+            if (count >= 3) matches.push({ start: [start, y], end: [x-1, y], dir: 'h', count });
+            count = 1;
+            start = x;
           }
         }
+        if (count >= 3) matches.push({ start: [start, y], end: [BOARD_SIZE-1, y], dir: 'h', count });
       }
 
       // Вертикальные
       for (let x = 0; x < BOARD_SIZE; x++) {
-        for (let y = 0; y < BOARD_SIZE - 2; y++) {
+        let count = 1;
+        let start = 0;
+        for (let y = 1; y < BOARD_SIZE; y++) {
+          if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y-1][x]) {
+            count++;
+          } else {
+            if (count >= 3) matches.push({ start: [x, start], end: [x, y-1], dir: 'v', count });
+            count = 1;
+            start = y;
+          }
+        }
+        if (count >= 3) matches.push({ start: [x, start], end: [x, BOARD_SIZE-1], dir: 'v', count });
+      }
+
+      return matches;
+    }
+
+    function findSquares() {
+      const squares = [];
+      for (let y = 0; y < BOARD_SIZE - 1; y++) {
+        for (let x = 0; x < BOARD_SIZE - 1; x++) {
           if (window.board[y][x] !== '🪨' &&
+              window.board[y][x] === window.board[y][x+1] &&
               window.board[y][x] === window.board[y+1][x] &&
-              window.board[y][x] === window.board[y+2][x]) {
-            let end = y + 2;
-            while (end + 1 < BOARD_SIZE && window.board[end + 1][x] === window.board[y][x]) end++;
-            for (let i = y; i <= end; i++) toRemove.add(`${x},${i}`);
-            y = end;
+              window.board[y][x] === window.board[y+1][x+1]) {
+            squares.push({ x, y, candy: window.board[y][x] });
           }
         }
       }
+      return squares;
+    }
 
-      let removed = 0;
+    function processTurn() {
+      const matches = findMatches();
+      const squares = findSquares();
+      const toRemove = new Set();
+
+      // Все совпадения → удаление
+      for (const m of matches) {
+        const [sx, sy] = m.start;
+        const [ex, ey] = m.end;
+        if (m.dir === 'h') {
+          for (let x = sx; x <= ex; x++) toRemove.add(`${x},${sy}`);
+        } else {
+          for (let y = sy; y <= ey; y++) toRemove.add(`${sx},${y}`);
+        }
+      }
+
+      // Квадраты → бомба (не удаляем)
+      for (const sq of squares) {
+        const keys = [`${sq.x},${sq.y}`, `${sq.x+1},${sq.y}`, `${sq.x},${sq.y+1}`, `${sq.x+1},${sq.y+1}`];
+        keys.forEach(k => toRemove.delete(k));
+        window.board[sq.y][sq.x] = '💣';
+      }
+
+      // 4 в ряд → стрелка
+      for (const m of matches) {
+        if (m.count === 4) {
+          const midX = Math.floor((m.start[0] + m.end[0]) / 2);
+          const midY = Math.floor((m.start[1] + m.end[1]) / 2);
+          toRemove.delete(`${midX},${midY}`);
+          window.board[midY][midX] = m.dir === 'h' ? '➡️' : '⬇️';
+        }
+      }
+
+      // 5+ → радужная
+      for (const m of matches) {
+        if (m.count >= 5) {
+          const midX = Math.floor((m.start[0] + m.end[0]) / 2);
+          const midY = Math.floor((m.start[1] + m.end[1]) / 2);
+          toRemove.delete(`${midX},${midY}`);
+          window.board[midY][midX] = '✨';
+        }
+      }
+
+      // Удаляем остальное
+      let count = 0;
+      const targetType = LEVELS_CONFIG[currentLevel - 1].type;
       toRemove.forEach(pos => {
         const [x, y] = pos.split(',').map(Number);
         if (window.board[y][x] !== '🪨') {
+          if (targetType === null || window.board[y][x] === targetType) {
+            count++;
+          }
           window.board[y][x] = null;
-          removed++;
         }
       });
 
-      collected += removed;
+      collected += count;
       collectedEl.textContent = collected;
-      const target = TARGETS[currentLevel - 1] || TARGETS[TARGETS.length - 1];
-      if (collected >= target) {
+      if (collected >= LEVELS_CONFIG[currentLevel - 1].target) {
         completeLevel();
         return;
       }
@@ -455,10 +693,11 @@
 
       renderBoard();
       if (hasMatches()) {
-        setTimeout(processTurn, 250);
+        setTimeout(processTurn, 300);
       }
     }
 
+    // ====== ЗАВЕРШЕНИЕ УРОВНЯ ======
     function completeLevel() {
       gameActive = false;
       if (currentLevel < TOTAL_LEVELS && !unlockedLevels.includes(currentLevel + 1)) {
@@ -475,13 +714,21 @@
     }
 
     restartBtn.onclick = () => startLevel(currentLevel);
-    btnNext.onclick = () => startLevel(currentLevel + 1);
+    btnNext.onclick = () => {
+      if (currentLevel < TOTAL_LEVELS) {
+        startLevel(currentLevel + 1);
+      } else {
+        alert('Поздравляем! Вы прошли весь лабиринт!');
+        showScreen('map-screen');
+        drawMazeMap();
+      }
+    };
     btnMap.onclick = () => {
       showScreen('map-screen');
       drawMazeMap();
     };
 
-    // Старт
+    // ====== СТАРТ ======
     drawMazeMap();
   </script>
 </body>
