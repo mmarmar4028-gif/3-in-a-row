@@ -27,49 +27,6 @@
       max-width: 420px;
     }
 
-    .screen { display: none; }
-    .screen.active { display: block; }
-
-    /* ========== КАРТА УРОВНЕЙ (ЗМЕЙКА) ========== */
-    #map-screen h1 {
-      text-align: center;
-      color: #d62828;
-      margin-bottom: 18px;
-      font-size: 22px;
-    }
-
-    #maze-path {
-      position: relative;
-      height: 280px;
-      background: #f9f9f9;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .level-node {
-      position: absolute;
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-weight: bold;
-      color: white;
-      cursor: pointer;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      transition: transform 0.2s;
-    }
-
-    .level-node:hover:not(.locked) {
-      transform: scale(1.1);
-    }
-
-    .level-node.locked { background: #bbb; cursor: not-allowed; }
-    .level-node.unlocked { background: #4caf50; }
-    .level-node.current { background: #e63946; }
-
     /* ========== ИГРОВОЙ ЭКРАН ========== */
     #game-ui {
       display: flex;
@@ -136,6 +93,9 @@
     }
 
     /* ========== ЭКРАН ПОБЕДЫ ========== */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
     #win-screen {
       text-align: center;
       padding: 20px;
@@ -166,19 +126,13 @@
     }
 
     .btn-next { background: #4caf50; color: white; }
-    .btn-map { background: #e63946; color: white; }
+    .btn-restart { background: #e63946; color: white; }
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- КАРТА УРОВНЕЙ -->
-    <div id="map-screen" class="screen active">
-      <h1>🧭 Конфетный Лабиринт</h1>
-      <div id="maze-path"></div>
-    </div>
-
     <!-- ИГРОВОЙ ЭКРАН -->
-    <div id="game-screen" class="screen">
+    <div id="game-screen" class="screen active">
       <div id="game-ui">
         <div><span id="target-type">🍫</span>: <span id="collected">0</span>/<span id="target">30</span></div>
         <div>Ходы: <span id="moves">45</span></div>
@@ -198,143 +152,89 @@
       <div class="coins">🪙🪙🪙🪙🪙</div>
       <p>+5 монеток за прохождение!</p>
       <button class="btn btn-next" id="btn-next">▶ Следующий уровень</button>
-      <button class="btn btn-map" id="btn-map">🗺️ Вернуться на карту</button>
+      <button class="btn btn-restart" id="btn-restart">🔙 Начать заново</button>
     </div>
   </div>
-<script>
-  // ====== КОНФИГУРАЦИЯ ======
-  const CANDIES = ['🍭', '🍬', '🍫', '🍩', '🍪', '🧁'];
-  const LEVELS_CONFIG = [
-    { target: 30, type: '🍫', name: 'шоколадки' },
-    { target: 40, type: '🍭', name: 'леденцы' },
-    { target: 50, type: '🍬', name: 'конфеты' },
-    { target: 60, type: '🍩', name: 'пончики' },
-    { target: 70, type: null, name: 'любые конфеты' },
-    { target: 75, type: null, name: 'любые конфеты' },
-    { target: 80, type: null, name: 'любые конфеты' },
-    { target: 85, type: null, name: 'любые конфеты' },
-    { target: 90, type: null, name: 'любые конфеты' },
-    { target: 95, type: null, name: 'любые конфеты' }
-  ];
-  const MOVES = 45;
-  const BOARD_SIZE = 8;
-  const TOTAL_LEVELS = LEVELS_CONFIG.length;
 
-  // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
-  let currentLevel = 1;
-  let collected = 0;
-  let movesLeft = MOVES;
-  let selectedCell = null;
-  let gameActive = true;
-  let unlockedLevels = JSON.parse(localStorage.getItem('unlockedLevels')) || [1];
+  <script>
+    // ====== КОНФИГУРАЦИЯ ======
+    const CANDIES = ['🍭', '🍬', '🍫', '🍩', '🍪', '🧁'];
+    const LEVELS_CONFIG = [
+      { target: 30, type: '🍫', name: 'шоколадки' },
+      { target: 40, type: '🍭', name: 'леденцы' },
+      { target: 50, type: '🍬', name: 'конфеты' },
+      { target: 60, type: '🍩', name: 'пончики' },
+      { target: 70, type: null, name: 'любые конфеты' },
+      { target: 75, type: null, name: 'любые конфеты' },
+      { target: 80, type: null, name: 'любые конфеты' },
+      { target: 85, type: null, name: 'любые конфеты' },
+      { target: 90, type: null, name: 'любые конфеты' },
+      { target: 95, type: null, name: 'любые конфеты' }
+    ];
+    const MOVES = 45;
+    const BOARD_SIZE = 8;
+    const TOTAL_LEVELS = LEVELS_CONFIG.length;
 
-  // ====== DOM ======
-  const mazePath = document.getElementById('maze-path');
-  const gameBoardEl = document.getElementById('game-board');
-  const collectedEl = document.getElementById('collected');
-  const targetEl = document.getElementById('target');
-  const targetTypeEl = document.getElementById('target-type');
-  const movesEl = document.getElementById('moves');
-  const levelNumEl = document.getElementById('level-num');
-  const instructionsEl = document.getElementById('instructions');
-  const restartBtn = document.getElementById('restart-btn');
-  const btnNext = document.getElementById('btn-next');
-  const btnMap = document.getElementById('btn-map');
+    // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
+    let currentLevel = 1;
+    let collected = 0;
+    let movesLeft = MOVES;
+    let selectedCell = null;
+    let gameActive = true;
 
-  // ====== КАРТА УРОВНЕЙ (ЗМЕЙКА) — ИСПРАВЛЕНА ======
-  function drawMazeMap() {
-    mazePath.innerHTML = '';
+    // ====== DOM ======
+    const gameBoardEl = document.getElementById('game-board');
+    const collectedEl = document.getElementById('collected');
+    const targetEl = document.getElementById('target');
+    const targetTypeEl = document.getElementById('target-type');
+    const movesEl = document.getElementById('moves');
+    const levelNumEl = document.getElementById('level-num');
+    const instructionsEl = document.getElementById('instructions');
+    const restartBtn = document.getElementById('restart-btn');
+    const btnNext = document.getElementById('btn-next');
+    const btnRestart = document.getElementById('btn-restart');
 
-    // Ждём, пока элемент получит размеры
-    const w = mazePath.clientWidth;
-    const h = mazePath.clientHeight;
-
-    // Если размеры нулевые — откладываем
-    if (w === 0 || h === 0) {
-      requestAnimationFrame(drawMazeMap);
-      return;
+    // ====== ПОКАЗ ЭКРАНА ======
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
     }
 
-    const rows = 3;
-    const cols = 4;
-    const dx = (w - 60) / (cols - 1);
-    const dy = (h - 60) / (rows - 1);
+    // ====== ЗАПУСК УРОВНЯ ======
+    function startLevel(level) {
+      currentLevel = level;
+      const cfg = LEVELS_CONFIG[level - 1];
+      collected = 0;
+      movesLeft = MOVES;
 
-    let level = 1;
-    for (let r = 0; r < rows; r++) {
-      const dir = r % 2 === 0 ? 1 : -1;
-      const start = r % 2 === 0 ? 0 : cols - 1;
-      const end = r % 2 === 0 ? cols : -1;
-      for (let c = start; c !== end; c += dir) {
-        if (level > TOTAL_LEVELS) break;
-        const x = 30 + (r % 2 === 0 ? c : cols - 1 - c) * dx;
-        const y = 30 + r * dy;
+      collectedEl.textContent = '0';
+      targetEl.textContent = cfg.target;
+      targetTypeEl.textContent = cfg.type || '🍬';
+      movesEl.textContent = movesLeft;
+      levelNumEl.textContent = level;
+      instructionsEl.innerHTML = `Собери <b>${cfg.target}</b> ${cfg.name}!`;
 
-        const node = document.createElement('div');
-        const maxUnlocked = Math.max(...unlockedLevels);
-        const status = level <= maxUnlocked
-          ? (level === currentLevel ? 'current' : 'unlocked')
-          : 'locked';
-        node.className = `level-node ${status}`;
-        node.textContent = level;
-        node.style.left = (x - 21) + 'px';
-        node.style.top = (y - 21) + 'px';
+      initBoard();
+      showScreen('game-screen');
+    }
 
-        if (status !== 'locked') {
-          node.onclick = () => startLevel(level);
+    // ====== ИНИЦИАЛИЗАЦИЯ ДОСКИ ======
+    function initBoard() {
+      window.board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
+
+      if (currentLevel >= 5) {
+        const stoneCount = 2 * (currentLevel - 4);
+        const positions = [];
+        for (let y = 1; y < BOARD_SIZE - 1; y += 2) {
+          for (let x = 1; x < BOARD_SIZE - 1; x += 2) {
+            if (positions.length < stoneCount) positions.push([x, y]);
+          }
         }
-
-        mazePath.appendChild(node);
-        level++;
-      }
-      if (level > TOTAL_LEVELS) break;
-    }
-  }
-
-  // ====== ЗАПУСК УРОВНЯ ======
-  function startLevel(level) {
-    currentLevel = level;
-    const cfg = LEVELS_CONFIG[level - 1];
-    collected = 0;
-    movesLeft = MOVES;
-
-    collectedEl.textContent = '0';
-    targetEl.textContent = cfg.target;
-    targetTypeEl.textContent = cfg.type || '🍬';
-    movesEl.textContent = movesLeft;
-    levelNumEl.textContent = level;
-    instructionsEl.innerHTML = `Собери <b>${cfg.target}</b> ${cfg.name}!`;
-
-    initBoard();
-    showScreen('game-screen');
-  }
-
-  // ====== ИНИЦИАЛИЗАЦИЯ ДОСКИ ======
-  function initBoard() {
-    window.board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
-
-    if (currentLevel >= 5) {
-      const stoneCount = 2 * (currentLevel - 4);
-      const positions = [];
-      for (let y = 1; y < BOARD_SIZE - 1; y += 2) {
-        for (let x = 1; x < BOARD_SIZE - 1; x += 2) {
-          if (positions.length < stoneCount) positions.push([x, y]);
+        for (const [x, y] of positions) {
+          window.board[y][x] = '🪨';
         }
       }
-      for (const [x, y] of positions) {
-        window.board[y][x] = '🪨';
-      }
-    }
 
-    for (let y = 0; y < BOARD_SIZE; y++) {
-      for (let x = 0; x < BOARD_SIZE; x++) {
-        if (window.board[y][x] !== '🪨') {
-          window.board[y][x] = CANDIES[Math.floor(Math.random() * CANDIES.length)];
-        }
-      }
-    }
-
-    while (hasMatches()) {
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
           if (window.board[y][x] !== '🪨') {
@@ -342,385 +242,380 @@
           }
         }
       }
+
+      while (hasMatches()) {
+        for (let y = 0; y < BOARD_SIZE; y++) {
+          for (let x = 0; x < BOARD_SIZE; x++) {
+            if (window.board[y][x] !== '🪨') {
+              window.board[y][x] = CANDIES[Math.floor(Math.random() * CANDIES.length)];
+            }
+          }
+        }
+      }
+
+      renderBoard();
     }
 
-    renderBoard();
-  }
-
-  function renderBoard() {
-    gameBoardEl.innerHTML = '';
-    for (let y = 0; y < BOARD_SIZE; y++) {
-      for (let x = 0; x < BOARD_SIZE; x++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        if (window.board[y][x] === '🪨') {
-          cell.classList.add('obstacle');
-          cell.textContent = '🪨';
-        } else {
-          cell.textContent = window.board[y][x];
+    function renderBoard() {
+      gameBoardEl.innerHTML = '';
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          if (window.board[y][x] === '🪨') {
+            cell.classList.add('obstacle');
+            cell.textContent = '🪨';
+          } else {
+            cell.textContent = window.board[y][x];
+          }
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          cell.addEventListener('click', handleCellClick);
+          gameBoardEl.appendChild(cell);
         }
-        cell.dataset.x = x;
-        cell.dataset.y = y;
-        cell.addEventListener('click', handleCellClick);
-        gameBoardEl.appendChild(cell);
       }
     }
-  }
 
-  // ====== ОБРАБОТКА КЛИКОВ ======
-  function handleCellClick(e) {
-    if (!gameActive) return;
-    const x = +e.target.dataset.x;
-    const y = +e.target.dataset.y;
-    if (window.board[y][x] === '🪨') return;
+    // ====== ОБРАБОТКА КЛИКОВ ======
+    function handleCellClick(e) {
+      if (!gameActive) return;
+      const x = +e.target.dataset.x;
+      const y = +e.target.dataset.y;
+      if (window.board[y][x] === '🪨') return;
 
-    if (selectedCell === null) {
-      selectedCell = { x, y };
-      e.target.classList.add('selected');
-    } else {
-      const { x: x1, y: y1 } = selectedCell;
-      document.querySelector(`.cell[data-x="${x1}"][data-y="${y1}"]`)?.classList.remove('selected');
+      if (selectedCell === null) {
+        selectedCell = { x, y };
+        e.target.classList.add('selected');
+      } else {
+        const { x: x1, y: y1 } = selectedCell;
+        document.querySelector(`.cell[data-x="${x1}"][data-y="${y1}"]`)?.classList.remove('selected');
 
-      const dx = Math.abs(x - x1);
-      const dy = Math.abs(y - y1);
-      if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-        const item1 = window.board[y1][x1];
-        const item2 = window.board[y][x];
+        const dx = Math.abs(x - x1);
+        const dy = Math.abs(y - y1);
+        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+          const item1 = window.board[y1][x1];
+          const item2 = window.board[y][x];
 
-        window.board[y][x] = item1;
-        window.board[y1][x1] = item2;
-        renderBoard();
-
-        let shouldConsumeMove = true;
-
-        if (['💣', '➡️', '⬇️', '✨'].includes(item1) || ['💣', '➡️', '⬇️', '✨'].includes(item2)) {
-          shouldConsumeMove = activateSpecial(x, y, x1, y1);
-        }
-
-        if (hasMatches()) {
-          if (shouldConsumeMove) {
-            movesLeft--;
-            movesEl.textContent = movesLeft;
-          }
-          setTimeout(processTurn, 300);
-          selectedCell = null;
-          return;
-        }
-
-        if (shouldConsumeMove) {
-          window.board[y][x] = item2;
-          window.board[y1][x1] = item1;
+          window.board[y][x] = item1;
+          window.board[y1][x1] = item2;
           renderBoard();
+
+          let shouldConsumeMove = true;
+
+          if (['💣', '➡️', '⬇️', '✨'].includes(item1) || ['💣', '➡️', '⬇️', '✨'].includes(item2)) {
+            shouldConsumeMove = activateSpecial(x, y, x1, y1);
+          }
+
+          if (hasMatches()) {
+            if (shouldConsumeMove) {
+              movesLeft--;
+              movesEl.textContent = movesLeft;
+            }
+            setTimeout(processTurn, 300);
+            selectedCell = null;
+            return;
+          }
+
+          if (shouldConsumeMove) {
+            window.board[y][x] = item2;
+            window.board[y1][x1] = item1;
+            renderBoard();
+          }
         }
+        selectedCell = null;
       }
-      selectedCell = null;
+
+      if (movesLeft <= 0) {
+        alert('Ходы закончились! Нажмите "Начать заново".');
+      }
     }
 
-    if (movesLeft <= 0) {
-      alert('Ходы закончились! Нажмите "Начать заново".');
+    // ====== СПЕЦ. ЭЛЕМЕНТЫ ======
+    function activateSpecial(x, y, x1, y1) {
+      const a = window.board[y][x];
+      const b = window.board[y1][x1];
+
+      if (a === '✨' || b === '✨') {
+        const other = a === '✨' ? b : a;
+        if (CANDIES.includes(other)) {
+          let count = 0;
+          for (let yy = 0; yy < BOARD_SIZE; yy++) {
+            for (let xx = 0; xx < BOARD_SIZE; xx++) {
+              if (window.board[yy][xx] === other) {
+                window.board[yy][xx] = null;
+                count++;
+              }
+            }
+          }
+          addCollected(count, other);
+        }
+        window.board[a === '✨' ? y : y1][a === '✨' ? x : x1] = null;
+        return true;
+      }
+
+      if (a === '💣') {
+        explodeArea(x, y);
+        window.board[y][x] = null;
+        return true;
+      }
+      if (b === '💣') {
+        explodeArea(x1, y1);
+        window.board[y1][x1] = null;
+        return true;
+      }
+
+      if (a === '➡️') {
+        explodeRow(y);
+        window.board[y][x] = null;
+        return true;
+      }
+      if (a === '⬇️') {
+        explodeColumn(x);
+        window.board[y][x] = null;
+        return true;
+      }
+      if (b === '➡️') {
+        explodeRow(y1);
+        window.board[y1][x1] = null;
+        return true;
+      }
+      if (b === '⬇️') {
+        explodeColumn(x1);
+        window.board[y1][x1] = null;
+        return true;
+      }
+
+      return false;
     }
-  }
 
-  // ====== СПЕЦ. ЭЛЕМЕНТЫ ======
-  function activateSpecial(x, y, x1, y1) {
-    const a = window.board[y][x];
-    const b = window.board[y1][x1];
-
-    if (a === '✨' || b === '✨') {
-      const other = a === '✨' ? b : a;
-      if (CANDIES.includes(other)) {
-        let count = 0;
-        for (let yy = 0; yy < BOARD_SIZE; yy++) {
-          for (let xx = 0; xx < BOARD_SIZE; xx++) {
-            if (window.board[yy][xx] === other) {
-              window.board[yy][xx] = null;
-              count++;
+    function explodeArea(cx, cy) {
+      let count = 0;
+      const targetType = LEVELS_CONFIG[currentLevel - 1].type;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const x = cx + dx;
+          const y = cy + dy;
+          if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && window.board[y][x] !== '🪨') {
+            if (window.board[y][x] !== null) {
+              if (targetType === null || window.board[y][x] === targetType) {
+                count++;
+              }
+              window.board[y][x] = null;
             }
           }
         }
-        addCollected(count, other);
       }
-      window.board[a === '✨' ? y : y1][a === '✨' ? x : x1] = null;
-      return true;
+      addCollected(count, targetType);
     }
 
-    if (a === '💣') {
-      explodeArea(x, y);
-      window.board[y][x] = null;
-      return true;
-    }
-    if (b === '💣') {
-      explodeArea(x1, y1);
-      window.board[y1][x1] = null;
-      return true;
-    }
-
-    if (a === '➡️') {
-      explodeRow(y);
-      window.board[y][x] = null;
-      return true;
-    }
-    if (a === '⬇️') {
-      explodeColumn(x);
-      window.board[y][x] = null;
-      return true;
-    }
-    if (b === '➡️') {
-      explodeRow(y1);
-      window.board[y1][x1] = null;
-      return true;
-    }
-    if (b === '⬇️') {
-      explodeColumn(x1);
-      window.board[y1][x1] = null;
-      return true;
+    function explodeRow(row) {
+      let count = 0;
+      const targetType = LEVELS_CONFIG[currentLevel - 1].type;
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        if (window.board[row][x] !== '🪨' && window.board[row][x] !== null) {
+          if (targetType === null || window.board[row][x] === targetType) {
+            count++;
+          }
+          window.board[row][x] = null;
+        }
+      }
+      addCollected(count, targetType);
     }
 
-    return false;
-  }
+    function explodeColumn(col) {
+      let count = 0;
+      const targetType = LEVELS_CONFIG[currentLevel - 1].type;
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        if (window.board[y][col] !== '🪨' && window.board[y][col] !== null) {
+          if (targetType === null || window.board[y][col] === targetType) {
+            count++;
+          }
+          window.board[y][col] = null;
+        }
+      }
+      addCollected(count, targetType);
+    }
 
-  function explodeArea(cx, cy) {
-    let count = 0;
-    const targetType = LEVELS_CONFIG[currentLevel - 1].type;
-    for (let dy = -2; dy <= 2; dy++) {
-      for (let dx = -2; dx <= 2; dx++) {
-        const x = cx + dx;
-        const y = cy + dy;
-        if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && window.board[y][x] !== '🪨') {
-          if (window.board[y][x] !== null) {
-            if (targetType === null || window.board[y][x] === targetType) {
-              count++;
-            }
-            window.board[y][x] = null;
+    function addCollected(count, type) {
+      const cfg = LEVELS_CONFIG[currentLevel - 1];
+      if (cfg.type === null || type === cfg.type) {
+        collected += count;
+        collectedEl.textContent = collected;
+        if (collected >= cfg.target) {
+          completeLevel();
+        }
+      }
+    }
+
+    // ====== МЕХАНИКА ИГРЫ ======
+    function hasMatches() {
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE - 2; x++) {
+          if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y][x+1] && window.board[y][x] === window.board[y][x+2]) {
+            return true;
           }
         }
       }
-    }
-    addCollected(count, targetType);
-  }
-
-  function explodeRow(row) {
-    let count = 0;
-    const targetType = LEVELS_CONFIG[currentLevel - 1].type;
-    for (let x = 0; x < BOARD_SIZE; x++) {
-      if (window.board[row][x] !== '🪨' && window.board[row][x] !== null) {
-        if (targetType === null || window.board[row][x] === targetType) {
-          count++;
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        for (let y = 0; y < BOARD_SIZE - 2; y++) {
+          if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y+1][x] && window.board[y][x] === window.board[y+2][x]) {
+            return true;
+          }
         }
-        window.board[row][x] = null;
       }
+      return false;
     }
-    addCollected(count, targetType);
-  }
 
-  function explodeColumn(col) {
-    let count = 0;
-    const targetType = LEVELS_CONFIG[currentLevel - 1].type;
-    for (let y = 0; y < BOARD_SIZE; y++) {
-      if (window.board[y][col] !== '🪨' && window.board[y][col] !== null) {
-        if (targetType === null || window.board[y][col] === targetType) {
-          count++;
+    function findMatches() {
+      const matches = [];
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        let count = 1;
+        let start = 0;
+        for (let x = 1; x < BOARD_SIZE; x++) {
+          if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y][x-1]) {
+            count++;
+          } else {
+            if (count >= 3) matches.push({ start: [start, y], end: [x-1, y], dir: 'h', count });
+            count = 1;
+            start = x;
+          }
         }
-        window.board[y][col] = null;
+        if (count >= 3) matches.push({ start: [start, y], end: [BOARD_SIZE-1, y], dir: 'h', count });
       }
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        let count = 1;
+        let start = 0;
+        for (let y = 1; y < BOARD_SIZE; y++) {
+          if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y-1][x]) {
+            count++;
+          } else {
+            if (count >= 3) matches.push({ start: [x, start], end: [x, y-1], dir: 'v', count });
+            count = 1;
+            start = y;
+          }
+        }
+        if (count >= 3) matches.push({ start: [x, start], end: [x, BOARD_SIZE-1], dir: 'v', count });
+      }
+      return matches;
     }
-    addCollected(count, targetType);
-  }
 
-  function addCollected(count, type) {
-    const cfg = LEVELS_CONFIG[currentLevel - 1];
-    if (cfg.type === null || type === cfg.type) {
+    function findSquares() {
+      const squares = [];
+      for (let y = 0; y < BOARD_SIZE - 1; y++) {
+        for (let x = 0; x < BOARD_SIZE - 1; x++) {
+          if (window.board[y][x] !== '🪨' &&
+              window.board[y][x] === window.board[y][x+1] &&
+              window.board[y][x] === window.board[y+1][x] &&
+              window.board[y][x] === window.board[y+1][x+1]) {
+            squares.push({ x, y, candy: window.board[y][x] });
+          }
+        }
+      }
+      return squares;
+    }
+
+    function processTurn() {
+      const matches = findMatches();
+      const squares = findSquares();
+      const toRemove = new Set();
+
+      for (const m of matches) {
+        const [sx, sy] = m.start;
+        const [ex, ey] = m.end;
+        if (m.dir === 'h') {
+          for (let x = sx; x <= ex; x++) toRemove.add(`${x},${sy}`);
+        } else {
+          for (let y = sy; y <= ey; y++) toRemove.add(`${sx},${y}`);
+        }
+      }
+
+      for (const sq of squares) {
+        const keys = [`${sq.x},${sq.y}`, `${sq.x+1},${sq.y}`, `${sq.x},${sq.y+1}`, `${sq.x+1},${sq.y+1}`];
+        keys.forEach(k => toRemove.delete(k));
+        window.board[sq.y][sq.x] = '💣';
+      }
+
+      for (const m of matches) {
+        if (m.count === 4) {
+          const midX = Math.floor((m.start[0] + m.end[0]) / 2);
+          const midY = Math.floor((m.start[1] + m.end[1]) / 2);
+          toRemove.delete(`${midX},${midY}`);
+          window.board[midY][midX] = m.dir === 'h' ? '➡️' : '⬇️';
+        }
+      }
+
+      for (const m of matches) {
+        if (m.count >= 5) {
+          const midX = Math.floor((m.start[0] + m.end[0]) / 2);
+          const midY = Math.floor((m.start[1] + m.end[1]) / 2);
+          toRemove.delete(`${midX},${midY}`);
+          window.board[midY][midX] = '✨';
+        }
+      }
+
+      let count = 0;
+      const targetType = LEVELS_CONFIG[currentLevel - 1].type;
+      toRemove.forEach(pos => {
+        const [x, y] = pos.split(',').map(Number);
+        if (window.board[y][x] !== '🪨') {
+          if (targetType === null || window.board[y][x] === targetType) {
+            count++;
+          }
+          window.board[y][x] = null;
+        }
+      });
+
       collected += count;
       collectedEl.textContent = collected;
-      if (collected >= cfg.target) {
+      if (collected >= LEVELS_CONFIG[currentLevel - 1].target) {
         completeLevel();
+        return;
       }
-    }
-  }
 
-  // ====== МЕХАНИКА ИГРЫ ======
-  function hasMatches() {
-    for (let y = 0; y < BOARD_SIZE; y++) {
-      for (let x = 0; x < BOARD_SIZE - 2; x++) {
-        if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y][x+1] && window.board[y][x] === window.board[y][x+2]) {
-          return true;
-        }
-      }
-    }
-    for (let x = 0; x < BOARD_SIZE; x++) {
-      for (let y = 0; y < BOARD_SIZE - 2; y++) {
-        if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y+1][x] && window.board[y][x] === window.board[y+2][x]) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  function findMatches() {
-    const matches = [];
-    for (let y = 0; y < BOARD_SIZE; y++) {
-      let count = 1;
-      let start = 0;
-      for (let x = 1; x < BOARD_SIZE; x++) {
-        if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y][x-1]) {
-          count++;
-        } else {
-          if (count >= 3) matches.push({ start: [start, y], end: [x-1, y], dir: 'h', count });
-          count = 1;
-          start = x;
-        }
-      }
-      if (count >= 3) matches.push({ start: [start, y], end: [BOARD_SIZE-1, y], dir: 'h', count });
-    }
-    for (let x = 0; x < BOARD_SIZE; x++) {
-      let count = 1;
-      let start = 0;
-      for (let y = 1; y < BOARD_SIZE; y++) {
-        if (window.board[y][x] !== '🪨' && window.board[y][x] === window.board[y-1][x]) {
-          count++;
-        } else {
-          if (count >= 3) matches.push({ start: [x, start], end: [x, y-1], dir: 'v', count });
-          count = 1;
-          start = y;
-        }
-      }
-      if (count >= 3) matches.push({ start: [x, start], end: [x, BOARD_SIZE-1], dir: 'v', count });
-    }
-    return matches;
-  }
-
-  function findSquares() {
-    const squares = [];
-    for (let y = 0; y < BOARD_SIZE - 1; y++) {
-      for (let x = 0; x < BOARD_SIZE - 1; x++) {
-        if (window.board[y][x] !== '🪨' &&
-            window.board[y][x] === window.board[y][x+1] &&
-            window.board[y][x] === window.board[y+1][x] &&
-            window.board[y][x] === window.board[y+1][x+1]) {
-          squares.push({ x, y, candy: window.board[y][x] });
-        }
-      }
-    }
-    return squares;
-  }
-
-  function processTurn() {
-    const matches = findMatches();
-    const squares = findSquares();
-    const toRemove = new Set();
-
-    for (const m of matches) {
-      const [sx, sy] = m.start;
-      const [ex, ey] = m.end;
-      if (m.dir === 'h') {
-        for (let x = sx; x <= ex; x++) toRemove.add(`${x},${sy}`);
-      } else {
-        for (let y = sy; y <= ey; y++) toRemove.add(`${sx},${y}`);
-      }
-    }
-
-    for (const sq of squares) {
-      const keys = [`${sq.x},${sq.y}`, `${sq.x+1},${sq.y}`, `${sq.x},${sq.y+1}`, `${sq.x+1},${sq.y+1}`];
-      keys.forEach(k => toRemove.delete(k));
-      window.board[sq.y][sq.x] = '💣';
-    }
-
-    for (const m of matches) {
-      if (m.count === 4) {
-        const midX = Math.floor((m.start[0] + m.end[0]) / 2);
-        const midY = Math.floor((m.start[1] + m.end[1]) / 2);
-        toRemove.delete(`${midX},${midY}`);
-        window.board[midY][midX] = m.dir === 'h' ? '➡️' : '⬇️';
-      }
-    }
-
-    for (const m of matches) {
-      if (m.count >= 5) {
-        const midX = Math.floor((m.start[0] + m.end[0]) / 2);
-        const midY = Math.floor((m.start[1] + m.end[1]) / 2);
-        toRemove.delete(`${midX},${midY}`);
-        window.board[midY][midX] = '✨';
-      }
-    }
-
-    let count = 0;
-    const targetType = LEVELS_CONFIG[currentLevel - 1].type;
-    toRemove.forEach(pos => {
-      const [x, y] = pos.split(',').map(Number);
-      if (window.board[y][x] !== '🪨') {
-        if (targetType === null || window.board[y][x] === targetType) {
-          count++;
-        }
-        window.board[y][x] = null;
-      }
-    });
-
-    collected += count;
-    collectedEl.textContent = collected;
-    if (collected >= LEVELS_CONFIG[currentLevel - 1].target) {
-      completeLevel();
-      return;
-    }
-
-    for (let x = 0; x < BOARD_SIZE; x++) {
-      let writeY = BOARD_SIZE - 1;
-      for (let y = BOARD_SIZE - 1; y >= 0; y--) {
-        if (window.board[y][x] !== null && window.board[y][x] !== '🪨') {
-          if (writeY !== y) {
-            window.board[writeY][x] = window.board[y][x];
-            window.board[y][x] = null;
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        let writeY = BOARD_SIZE - 1;
+        for (let y = BOARD_SIZE - 1; y >= 0; y--) {
+          if (window.board[y][x] !== null && window.board[y][x] !== '🪨') {
+            if (writeY !== y) {
+              window.board[writeY][x] = window.board[y][x];
+              window.board[y][x] = null;
+            }
+            writeY--;
           }
-          writeY--;
+        }
+        for (let y = writeY; y >= 0; y--) {
+          if (window.board[y][x] === null) {
+            window.board[y][x] = CANDIES[Math.floor(Math.random() * CANDIES.length)];
+          }
         }
       }
-      for (let y = writeY; y >= 0; y--) {
-        if (window.board[y][x] === null) {
-          window.board[y][x] = CANDIES[Math.floor(Math.random() * CANDIES.length)];
-        }
+
+      renderBoard();
+      if (hasMatches()) {
+        setTimeout(processTurn, 300);
       }
     }
 
-    renderBoard();
-    if (hasMatches()) {
-      setTimeout(processTurn, 300);
+    // ====== ЗАВЕРШЕНИЕ УРОВНЯ ======
+    function completeLevel() {
+      gameActive = false;
+      showScreen('win-screen');
     }
-  }
 
-  // ====== ЗАВЕРШЕНИЕ УРОВНЯ ======
-  function completeLevel() {
-    gameActive = false;
-    if (currentLevel < TOTAL_LEVELS && !unlockedLevels.includes(currentLevel + 1)) {
-      unlockedLevels.push(currentLevel + 1);
-      localStorage.setItem('unlockedLevels', JSON.stringify(unlockedLevels));
-    }
-    showScreen('win-screen');
-  }
+    // ====== ОБРАБОТЧИКИ КНОПОК ======
+    restartBtn.onclick = () => startLevel(currentLevel);
+    btnNext.onclick = () => {
+      if (currentLevel < TOTAL_LEVELS) {
+        startLevel(currentLevel + 1);
+      } else {
+        alert('Поздравляем! Вы прошли все уровни!');
+        startLevel(1); // или можно оставить на последнем
+      }
+    };
+    btnRestart.onclick = () => startLevel(currentLevel);
 
-  // ====== НАВИГАЦИЯ ======
-  function showScreen(id) {
-    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    if (id === 'map-screen') {
-      drawMazeMap();
-    }
-  }
-
-  restartBtn.onclick = () => startLevel(currentLevel);
-  btnNext.onclick = () => {
-    if (currentLevel < TOTAL_LEVELS) {
-      startLevel(currentLevel + 1);
-    } else {
-      alert('Поздравляем! Вы прошли весь лабиринт!');
-      showScreen('map-screen');
-    }
-  };
-  btnMap.onclick = () => showScreen('map-screen');
-
-  // ====== ЗАПУСК ПОСЛЕ ПОЛНОЙ ЗАГРУЗКИ ======
-  window.addEventListener('load', () => {
-    drawMazeMap();
-  });
-</script>
+    // ====== СТАРТ ИГРЫ ======
+    startLevel(1);
+  </script>
 </body>
 </html>
