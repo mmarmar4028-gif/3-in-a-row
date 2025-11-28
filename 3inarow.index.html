@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>3 в ряд: Конфетки</title>
+  <title>Лабиринт Конфет</title>
   <style>
     * {
       margin: 0;
@@ -24,63 +24,79 @@
 
     #app {
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
     }
 
     .screen { display: none; }
     .screen.active { display: block; }
 
-    /* ========== МЕНЮ УРОВНЕЙ ========== */
-    #levels-screen h1 {
+    /* ========== КАРТА УРОВНЕЙ (ЗМЕЙКА) ========== */
+    #map-screen {
       text-align: center;
+    }
+
+    #map-screen h1 {
       color: #d62828;
       margin-bottom: 20px;
       font-size: 24px;
     }
 
-    #levels-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-
-    .level-btn {
-      aspect-ratio: 1;
-      border: none;
+    #maze-path {
+      position: relative;
+      height: 300px;
+      background: #f9f9f9;
       border-radius: 12px;
-      background: white;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-      font-size: 18px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    .level-node {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       font-weight: bold;
-      color: #555;
+      color: white;
       cursor: pointer;
-      transition: transform 0.15s, background 0.2s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    .level-btn.unlocked {
-      background: #ffebee;
-      color: #c62828;
+    .level-node:hover {
+      transform: scale(1.1);
     }
 
-    .level-btn.locked {
-      background: #f0f0f0;
-      color: #bbb;
+    .level-node.locked {
+      background: #ccc;
       cursor: not-allowed;
     }
 
-    .level-btn.unlocked:hover {
-      transform: scale(1.04);
-      background: #ffd5d8;
+    .level-node.unlocked {
+      background: #4caf50;
     }
 
-    /* ========== ИГРОВОЙ ЭКРАН ========== */
+    .level-node.current {
+      background: #e63946;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(230, 57, 70, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+    }
+
+    /* ========== ИГРА ========== */
     #game-ui {
       display: flex;
       justify-content: space-between;
       color: #d62828;
       font-weight: bold;
-      font-size: 16px;
       margin-bottom: 12px;
+      font-size: 16px;
     }
 
     #game-board {
@@ -95,13 +111,12 @@
     }
 
     .cell {
-      background: transparent;
+      background: white;
       border-radius: 8px;
       display: flex;
       justify-content: center;
       align-items: center;
       font-size: 22px;
-      font-weight: bold;
       cursor: pointer;
       transition: transform 0.12s;
     }
@@ -109,35 +124,11 @@
     .cell.obstacle {
       background: #555;
       color: white;
-      cursor: default;
     }
-
-    .cell.c0 { background: #ffebee; color: #c62828; }
-    .cell.c1 { background: #e3f2fd; color: #1565c0; }
-    .cell.c2 { background: #e8f5e9; color: #2e7d32; }
-    .cell.c3 { background: #fff8e1; color: #ff8f00; }
-    .cell.c4 { background: #f3e5f5; color: #7b1fa2; }
-    .cell.c5 { background: #fff3e0; color: #ef6c00; }
-
-    .cell.bomb { background: #ffebee; color: #c62828; }
-    .cell.arrow-h { background: #e3f2fd; color: #1565c0; }
-    .cell.arrow-v { background: #e3f2fd; color: #1565c0; }
-    .cell.rainbow { background: linear-gradient(135deg, gold, orangered); color: white; }
 
     .cell.selected {
       transform: scale(0.9);
       box-shadow: 0 0 0 3px #e63946;
-      z-index: 2;
-    }
-
-    #instructions {
-      background: #fff8f8;
-      border-left: 3px solid #e63946;
-      padding: 10px;
-      font-size: 13px;
-      color: #555;
-      margin-top: 12px;
-      border-radius: 0 6px 6px 0;
     }
 
     /* ========== ЭКРАН ПОБЕДЫ ========== */
@@ -162,7 +153,7 @@
       display: block;
       width: 100%;
       padding: 12px;
-      margin: 10px 0;
+      margin: 12px 0;
       border: none;
       border-radius: 30px;
       font-weight: bold;
@@ -175,91 +166,118 @@
       color: white;
     }
 
-    .btn-menu {
-      background: #e0e0e0;
-      color: #555;
+    .btn-map {
+      background: #e63946;
+      color: white;
     }
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- ЭКРАН ВЫБОРА УРОВНЕЙ -->
-    <div id="levels-screen" class="screen active">
-      <h1>🍬 Конфетки</h1>
-      <div id="levels-grid"></div>
+    <!-- ЭКРАН КАРТЫ (ЗМЕЙКА) -->
+    <div id="map-screen" class="screen active">
+      <h1>🧭 Лабиринт Конфет</h1>
+      <div id="maze-path"></div>
     </div>
 
-    <!-- ИГРОВОЙ ЭКРАН -->
+    <!-- ИГРА -->
     <div id="game-screen" class="screen">
       <div id="game-ui">
-        <div>🍫: <span id="chocolates">0</span>/<span id="target">5</span></div>
+        <div>Собрано: <span id="collected">0</span>/<span id="target">30</span></div>
         <div>Ходы: <span id="moves">30</span></div>
         <div>Ур: <span id="level-num">1</span></div>
       </div>
       <div id="game-board"></div>
-      <div id="instructions">
-        Собери нужное количество шоколадок 🍫!<br>
-        Обменивай соседние конфетки, чтобы создавать ряды из 3+.
-      </div>
     </div>
 
-    <!-- ЭКРАН ПОБЕДЫ -->
+    <!-- ПОБЕДА -->
     <div id="win-screen" class="screen">
-      <h2>🏆 Уровень пройден!</h2>
+      <h2>🎉 Уровень пройден!</h2>
       <div class="stars">⭐⭐⭐⭐⭐</div>
       <p>+5 звёзд за прохождение!</p>
       <button class="btn btn-next" id="btn-next">▶ Следующий уровень</button>
-      <button class="btn btn-menu" id="btn-menu">🏠 Вернуться на главный экран</button>
+      <button class="btn btn-map" id="btn-map">🗺️ Вернуться на карту</button>
     </div>
   </div>
 
   <script>
-    // Глобальные данные
-    const CANDIES = ['🍭', '🍬', '🍫', '🍩', '🍪', '🧁'];
-    const TARGET_CHOCOLATES = [5, 8, 12, 16, 20, 23, 26, 29, 32, 35]; // до уровня 10
-    const BASE_MOVES = 35;
+    // ====== НАСТРОЙКИ ======
+    const CANDIES = ['🍭', '🍬', '🍫', '🍩', '🍪', '🧁', '🍎', '🍇'];
+    const TARGETS = [30, 40, 55, 70, 90, 110, 135, 160, 190, 220]; // конфет для уничтожения
+    const BASE_MOVES = 32;
     const BOARD_SIZE = 8;
+    const TOTAL_LEVELS = 10;
 
+    // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
     let currentLevel = 1;
-    let chocolatesCollected = 0;
+    let collected = 0;
     let movesLeft = BASE_MOVES;
     let selectedCell = null;
     let gameActive = true;
-    let unlockedLevels = JSON.parse(localStorage.getItem('unlockedLevels')) || [1,2,3,4,5]; // открыты первые 5
+    let unlockedLevels = JSON.parse(localStorage.getItem('unlockedLevels')) || [1];
 
-    // DOM элементы
-    const levelsGrid = document.getElementById('levels-grid');
+    // ====== DOM ======
+    const mazePath = document.getElementById('maze-path');
     const gameBoardEl = document.getElementById('game-board');
-    const chocolatesEl = document.getElementById('chocolates');
+    const collectedEl = document.getElementById('collected');
     const targetEl = document.getElementById('target');
     const movesEl = document.getElementById('moves');
     const levelNumEl = document.getElementById('level-num');
     const btnNext = document.getElementById('btn-next');
-    const btnMenu = document.getElementById('btn-menu');
+    const btnMap = document.getElementById('btn-map');
 
-    // Инициализация карты уровней
-    function initLevelsScreen() {
-      levelsGrid.innerHTML = '';
-      for (let i = 1; i <= 10; i++) {
-        const btn = document.createElement('button');
-        btn.className = unlockedLevels.includes(i) ? 'level-btn unlocked' : 'level-btn locked';
-        btn.textContent = i;
-        btn.dataset.level = i;
-        if (unlockedLevels.includes(i)) {
-          btn.addEventListener('click', () => startLevel(i));
+    // ====== КАРТА УРОВНЕЙ (ЗМЕЙКА) ======
+    function drawMazeMap() {
+      mazePath.innerHTML = '';
+      const rows = 3;
+      const cols = 4;
+      const spacingX = (mazePath.offsetWidth - 60) / (cols - 1);
+      const spacingY = (mazePath.offsetHeight - 60) / (rows - 1);
+
+      let levelIndex = 1;
+      for (let row = 0; row < rows; row++) {
+        const isReversed = row % 2 === 1; // змейка
+        const colsInRow = Math.min(TOTAL_LEVELS - (row * cols), cols);
+        for (let i = 0; i < colsInRow; i++) {
+          const col = isReversed ? cols - 1 - i : i;
+          const x = 30 + col * spacingX;
+          const y = 30 + row * spacingY;
+
+          const node = document.createElement('div');
+          node.className = 'level-node';
+          node.textContent = levelIndex;
+
+          if (levelIndex > Math.max(...unlockedLevels)) {
+            node.classList.add('locked');
+          } else if (levelIndex === currentLevel) {
+            node.classList.add('current');
+          } else {
+            node.classList.add('unlocked');
+          }
+
+          if (!node.classList.contains('locked')) {
+            node.addEventListener('click', () => startLevel(levelIndex));
+          }
+
+          node.style.left = (x - 22) + 'px';
+          node.style.top = (y - 22) + 'px';
+          mazePath.appendChild(node);
+
+          levelIndex++;
+          if (levelIndex > TOTAL_LEVELS) break;
         }
-        levelsGrid.appendChild(btn);
+        if (levelIndex > TOTAL_LEVELS) break;
       }
     }
 
-    // Запуск уровня
+    // ====== ЗАПУСК УРОВНЯ ======
     function startLevel(level) {
       currentLevel = level;
-      const target = TARGET_CHOCOLATES[Math.min(level - 1, TARGET_CHOCOLATES.length - 1)];
-      chocolatesCollected = 0;
-      movesLeft = Math.max(12, BASE_MOVES - (level - 1) * 3);
-      
-      chocolatesEl.textContent = '0';
+      const target = TARGETS[Math.min(level - 1, TARGETS.length - 1)];
+      collected = 0;
+      movesLeft = Math.max(12, BASE_MOVES - (level - 1) * 2);
+
+      collectedEl.textContent = '0';
       targetEl.textContent = target;
       movesEl.textContent = movesLeft;
       levelNumEl.textContent = level;
@@ -268,40 +286,35 @@
       showScreen('game-screen');
     }
 
-    // Инициализация игрового поля
+    // ====== ИГРОВОЕ ПОЛЕ ======
     function initGameBoard() {
-      const board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
-      
-      // Добавляем камни с 5 уровня
+      window.board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
+
+      // Камни с 5 уровня
       if (currentLevel >= 5) {
         const stoneCount = 4 + (currentLevel - 5) * 2;
         const positions = [];
-        for (let y = 0; y < BOARD_SIZE; y += 2) {
-          for (let x = 0; x < BOARD_SIZE; x += 2) {
-            positions.push([x, y]);
-            if (positions.length >= stoneCount) break;
+        for (let y = 1; y < BOARD_SIZE - 1; y += 2) {
+          for (let x = 1; x < BOARD_SIZE - 1; x += 2) {
+            if (positions.length < stoneCount) positions.push([x, y]);
           }
-          if (positions.length >= stoneCount) break;
         }
         for (let i = 0; i < Math.min(stoneCount, positions.length); i++) {
           const [x, y] = positions[i];
-          board[y][x] = { type: 'obstacle' };
+          window.board[y][x] = '🪨';
         }
       }
 
       // Заполняем конфетами
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
-          if (board[y][x] === null) {
-            const idx = Math.floor(Math.random() * CANDIES.length);
-            board[y][x] = { type: 'candy', emoji: CANDIES[idx], class: `c${idx}` };
+          if (window.board[y][x] === null) {
+            window.board[y][x] = CANDIES[Math.floor(Math.random() * CANDIES.length)];
           }
         }
       }
 
-      window.gameBoard = board;
       renderBoard();
-      removeInitialMatches();
     }
 
     function renderBoard() {
@@ -309,22 +322,12 @@
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
           const cell = document.createElement('div');
-          const item = window.gameBoard[y][x];
-          if (item) {
-            cell.className = `cell ${item.class || item.type}`;
-            if (item.type === 'obstacle') {
-              cell.textContent = '🪨';
-            } else if (item.type === 'candy') {
-              cell.textContent = item.emoji;
-            } else if (item.type === 'bomb') {
-              cell.textContent = '💣';
-            } else if (item.type === 'arrow-h') {
-              cell.textContent = '➡️';
-            } else if (item.type === 'arrow-v') {
-              cell.textContent = '⬇️';
-            } else if (item.type === 'rainbow') {
-              cell.textContent = '✨';
-            }
+          cell.className = 'cell';
+          if (window.board[y][x] === '🪨') {
+            cell.classList.add('obstacle');
+            cell.textContent = '🪨';
+          } else {
+            cell.textContent = window.board[y][x];
           }
           cell.dataset.x = x;
           cell.dataset.y = y;
@@ -338,8 +341,7 @@
       if (!gameActive) return;
       const x = parseInt(e.target.dataset.x);
       const y = parseInt(e.target.dataset.y);
-      const item = window.gameBoard[y][x];
-      if (!item || item.type === 'obstacle') return;
+      if (window.board[y][x] === '🪨') return;
 
       if (selectedCell === null) {
         selectedCell = { x, y };
@@ -351,308 +353,159 @@
         const dx = Math.abs(x - x1);
         const dy = Math.abs(y - y1);
         if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-          const item1 = window.gameBoard[y1][x1];
-          const item2 = window.gameBoard[y][x];
-
           // Обмен
-          window.gameBoard[y][x] = item1;
-          window.gameBoard[y1][x1] = item2;
+          [window.board[y][x], window.board[y1][x1]] = [window.board[y1][x1], window.board[y][x]];
           renderBoard();
 
-          let shouldConsumeMove = true;
-
-          // Активация спец. элементов
-          if (item1.type !== 'candy' || item2.type !== 'candy') {
-            shouldConsumeMove = activateSpecial(x, y, x1, y1);
-          }
-
           if (hasMatches()) {
-            if (shouldConsumeMove) movesLeft--;
+            movesLeft--;
             movesEl.textContent = movesLeft;
-            setTimeout(processTurn, 350);
+            setTimeout(processTurn, 300);
             selectedCell = null;
             return;
           }
 
           // Откат
-          if (shouldConsumeMove) {
-            window.gameBoard[y][x] = item2;
-            window.gameBoard[y1][x1] = item1;
-            renderBoard();
-          }
+          [window.board[y][x], window.board[y1][x1]] = [window.board[y1][x1], window.board[y][x]];
+          renderBoard();
         }
         selectedCell = null;
       }
 
       if (movesLeft <= 0) {
-        alert('Ходы закончились! Попробуй ещё раз.');
-        showScreen('levels-screen');
+        alert('Ходы закончились! Попробуй снова.');
+        showScreen('map-screen');
+        drawMazeMap();
       }
     }
 
-    function activateSpecial(x, y, x1, y1) {
-      const a = window.gameBoard[y][x];
-      const b = window.gameBoard[y1][x1];
-
-      if (a?.type === 'rainbow' || b?.type === 'rainbow') {
-        const rainbowPos = a.type === 'rainbow' ? { x, y } : { x: x1, y: y1 };
-        const other = a.type === 'rainbow' ? b : a;
-        if (other?.type === 'candy' && other.emoji === '🍫') {
-          collectAllChocolates();
-        }
-        window.gameBoard[rainbowPos.y][rainbowPos.x] = null;
-        return true;
-      }
-
-      if (a?.type === 'bomb') {
-        explodeArea(x, y);
-        window.gameBoard[y][x] = null;
-        return true;
-      }
-      if (b?.type === 'bomb') {
-        explodeArea(x1, y1);
-        window.gameBoard[y1][x1] = null;
-        return true;
-      }
-
-      if (a?.type === 'arrow-h') {
-        explodeRow(y);
-        window.gameBoard[y][x] = null;
-        return true;
-      }
-      if (a?.type === 'arrow-v') {
-        explodeColumn(x);
-        window.gameBoard[y][x] = null;
-        return true;
-      }
-      if (b?.type === 'arrow-h') {
-        explodeRow(y1);
-        window.gameBoard[y1][x1] = null;
-        return true;
-      }
-      if (b?.type === 'arrow-v') {
-        explodeColumn(x1);
-        window.gameBoard[y1][x1] = null;
-        return true;
-      }
-
-      return false;
-    }
-
-    function collectAllChocolates() {
-      let count = 0;
-      for (let y = 0; y < BOARD_SIZE; y++) {
-        for (let x = 0; x < BOARD_SIZE; x++) {
-          if (window.gameBoard[y][x]?.type === 'candy' && window.gameBoard[y][x].emoji === '🍫') {
-            window.gameBoard[y][x] = null;
-            count++;
-          }
-        }
-      }
-      addChocolates(count);
-    }
-
-    function explodeArea(cx, cy) {
-      for (let dy = -2; dy <= 2; dy++) {
-        for (let dx = -2; dx <= 2; dx++) {
-          const x = cx + dx;
-          const y = cy + dy;
-          if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
-            if (window.gameBoard[y][x]?.type === 'candy' && window.gameBoard[y][x].emoji === '🍫') {
-              window.gameBoard[y][x] = null;
-              addChocolates(1);
-            } else if (window.gameBoard[y][x]?.type !== 'obstacle') {
-              window.gameBoard[y][x] = null;
-            }
-          }
-        }
-      }
-    }
-
-    function explodeRow(row) {
-      for (let x = 0; x < BOARD_SIZE; x++) {
-        if (window.gameBoard[row][x]?.type === 'candy' && window.gameBoard[row][x].emoji === '🍫') {
-          window.gameBoard[row][x] = null;
-          addChocolates(1);
-        } else if (window.gameBoard[row][x]?.type !== 'obstacle') {
-          window.gameBoard[row][x] = null;
-        }
-      }
-    }
-
-    function explodeColumn(col) {
-      for (let y = 0; y < BOARD_SIZE; y++) {
-        if (window.gameBoard[y][col]?.type === 'candy' && window.gameBoard[y][col].emoji === '🍫') {
-          window.gameBoard[y][col] = null;
-          addChocolates(1);
-        } else if (window.gameBoard[y][col]?.type !== 'obstacle') {
-          window.gameBoard[y][col] = null;
-        }
-      }
-    }
-
-    function addChocolates(count) {
-      chocolatesCollected += count;
-      chocolatesEl.textContent = chocolatesCollected;
-      const target = TARGET_CHOCOLATES[Math.min(currentLevel - 1, TARGET_CHOCOLATES.length - 1)];
-      if (chocolatesCollected >= target) {
-        completeLevel();
-      }
-    }
-
-    // Упрощённая логика матчей (только для шоколадок и создания спец. элементов)
     function hasMatches() {
-      // Горизонтальные
       for (let y = 0; y < BOARD_SIZE; y++) {
-        let count = 1;
-        for (let x = 1; x < BOARD_SIZE; x++) {
-          if (window.gameBoard[y][x]?.type === 'candy' && 
-              window.gameBoard[y][x]?.emoji === window.gameBoard[y][x-1]?.emoji) {
-            count++;
-            if (count >= 3) return true;
-          } else {
-            count = 1;
+        for (let x = 0; x < BOARD_SIZE - 2; x++) {
+          if (window.board[y][x] !== '🪨' && 
+              window.board[y][x] === window.board[y][x+1] && 
+              window.board[y][x] === window.board[y][x+2]) {
+            return true;
           }
         }
       }
-      // Вертикальные
       for (let x = 0; x < BOARD_SIZE; x++) {
-        let count = 1;
-        for (let y = 1; y < BOARD_SIZE; y++) {
-          if (window.gameBoard[y][x]?.type === 'candy' && 
-              window.gameBoard[y][x]?.emoji === window.gameBoard[y-1][x]?.emoji) {
-            count++;
-            if (count >= 3) return true;
-          } else {
-            count = 1;
+        for (let y = 0; y < BOARD_SIZE - 2; y++) {
+          if (window.board[y][x] !== '🪨' && 
+              window.board[y][x] === window.board[y+1][x] && 
+              window.board[y][x] === window.board[y+2][x]) {
+            return true;
           }
         }
       }
       return false;
-    }
-
-    function removeInitialMatches() {
-      while (hasMatches()) {
-        // Просто удаляем все шоколадки при старте, чтобы не было мгновенной победы
-        for (let y = 0; y < BOARD_SIZE; y++) {
-          for (let x = 0; x < BOARD_SIZE; x++) {
-            if (window.gameBoard[y][x]?.emoji === '🍫') {
-              const idx = Math.floor(Math.random() * (CANDIES.length - 1)); // кроме шоколадки
-              window.gameBoard[y][x] = { type: 'candy', emoji: CANDIES[idx], class: `c${idx}` };
-            }
-          }
-        }
-      }
-      renderBoard();
     }
 
     function processTurn() {
-      // Удаляем шоколадки в рядах
-      let removed = false;
+      let removed = 0;
+      const toRemove = new Set();
+
       // Горизонтальные
       for (let y = 0; y < BOARD_SIZE; y++) {
-        let count = 1;
-        for (let x = 1; x <= BOARD_SIZE; x++) {
-          if (x < BOARD_SIZE && 
-              window.gameBoard[y][x]?.type === 'candy' && 
-              window.gameBoard[y][x]?.emoji === window.gameBoard[y][x-1]?.emoji) {
-            count++;
-          } else {
-            if (count >= 3 && window.gameBoard[y][x-1]?.emoji === '🍫') {
-              for (let i = x - count; i < x; i++) {
-                window.gameBoard[y][i] = null;
-                removed = true;
-              }
-              addChocolates(count);
-            }
-            count = 1;
+        for (let x = 0; x < BOARD_SIZE - 2; x++) {
+          if (window.board[y][x] !== '🪨' && 
+              window.board[y][x] === window.board[y][x+1] && 
+              window.board[y][x] === window.board[y][x+2]) {
+            let end = x + 2;
+            while (end + 1 < BOARD_SIZE && window.board[y][end + 1] === window.board[y][x]) end++;
+            for (let i = x; i <= end; i++) toRemove.add(`${x},${y}`);
+            x = end;
           }
         }
       }
+
       // Вертикальные
       for (let x = 0; x < BOARD_SIZE; x++) {
-        let count = 1;
-        for (let y = 1; y <= BOARD_SIZE; y++) {
-          if (y < BOARD_SIZE && 
-              window.gameBoard[y][x]?.type === 'candy' && 
-              window.gameBoard[y][x]?.emoji === window.gameBoard[y-1][x]?.emoji) {
-            count++;
-          } else {
-            if (count >= 3 && window.gameBoard[y-1][x]?.emoji === '🍫') {
-              for (let i = y - count; i < y; i++) {
-                window.gameBoard[i][x] = null;
-                removed = true;
-              }
-              addChocolates(count);
-            }
-            count = 1;
+        for (let y = 0; y < BOARD_SIZE - 2; y++) {
+          if (window.board[y][x] !== '🪨' && 
+              window.board[y][x] === window.board[y+1][x] && 
+              window.board[y][x] === window.board[y+2][x]) {
+            let end = y + 2;
+            while (end + 1 < BOARD_SIZE && window.board[end + 1][x] === window.board[y][x]) end++;
+            for (let i = y; i <= end; i++) toRemove.add(`${x},${y}`);
+            y = end;
           }
         }
       }
 
-      if (removed) {
-        dropAndRefill();
-        renderBoard();
-        if (hasMatches()) {
-          setTimeout(processTurn, 300);
+      toRemove.forEach(pos => {
+        const [x, y] = pos.split(',').map(Number);
+        if (window.board[y][x] !== '🪨') {
+          window.board[y][x] = null;
+          removed++;
         }
-      }
-    }
+      });
 
-    function dropAndRefill() {
+      collected += removed;
+      collectedEl.textContent = collected;
+      const target = TARGETS[Math.min(currentLevel - 1, TARGETS.length - 1)];
+      if (collected >= target) {
+        completeLevel();
+        return;
+      }
+
+      // Падение
       for (let x = 0; x < BOARD_SIZE; x++) {
         let writeY = BOARD_SIZE - 1;
         for (let y = BOARD_SIZE - 1; y >= 0; y--) {
-          if (window.gameBoard[y][x] !== null && window.gameBoard[y][x].type !== 'obstacle') {
+          if (window.board[y][x] !== null && window.board[y][x] !== '🪨') {
             if (writeY !== y) {
-              window.gameBoard[writeY][x] = window.gameBoard[y][x];
-              window.gameBoard[y][x] = null;
+              window.board[writeY][x] = window.board[y][x];
+              window.board[y][x] = null;
             }
             writeY--;
           }
         }
         for (let y = writeY; y >= 0; y--) {
-          if (window.gameBoard[y][x] === null) {
-            const idx = Math.floor(Math.random() * CANDIES.length);
-            window.gameBoard[y][x] = { type: 'candy', emoji: CANDIES[idx], class: `c${idx}` };
+          if (window.board[y][x] === null) {
+            window.board[y][x] = CANDIES[Math.floor(Math.random() * CANDIES.length)];
           }
         }
+      }
+
+      renderBoard();
+      if (hasMatches()) {
+        setTimeout(processTurn, 300);
       }
     }
 
     function completeLevel() {
       gameActive = false;
-      // Открываем следующий уровень
-      const nextLevel = currentLevel + 1;
-      if (nextLevel <= 10 && !unlockedLevels.includes(nextLevel)) {
-        unlockedLevels.push(nextLevel);
+      if (currentLevel + 1 <= TOTAL_LEVELS && !unlockedLevels.includes(currentLevel + 1)) {
+        unlockedLevels.push(currentLevel + 1);
         localStorage.setItem('unlockedLevels', JSON.stringify(unlockedLevels));
       }
       showScreen('win-screen');
     }
 
-    function showScreen(screenId) {
+    // ====== НАВИГАЦИЯ ======
+    function showScreen(id) {
       document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-      document.getElementById(screenId).classList.add('active');
+      document.getElementById(id).classList.add('active');
     }
 
-    // Обработчики кнопок победы
     btnNext.addEventListener('click', () => {
-      if (currentLevel < 10) {
+      if (currentLevel < TOTAL_LEVELS) {
         startLevel(currentLevel + 1);
       } else {
-        alert('Поздравляем! Вы прошли все уровни!');
-        showScreen('levels-screen');
+        alert('Поздравляем! Вы прошли весь лабиринт!');
+        showScreen('map-screen');
+        drawMazeMap();
       }
     });
 
-    btnMenu.addEventListener('click', () => {
-      initLevelsScreen();
-      showScreen('levels-screen');
+    btnMap.addEventListener('click', () => {
+      showScreen('map-screen');
+      drawMazeMap();
     });
 
-    // Старт
-    initLevelsScreen();
+    // ====== СТАРТ ======
+    drawMazeMap();
   </script>
 </body>
 </html>
