@@ -62,32 +62,16 @@
       color: white;
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: transform 0.2s;
     }
 
-    .level-node:hover {
+    .level-node:hover:not(.locked) {
       transform: scale(1.1);
     }
 
-    .level-node.locked {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-
-    .level-node.unlocked {
-      background: #4caf50;
-    }
-
-    .level-node.current {
-      background: #e63946;
-      animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(230, 57, 70, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
-    }
+    .level-node.locked { background: #ccc; cursor: not-allowed; }
+    .level-node.unlocked { background: #4caf50; }
+    .level-node.current { background: #e63946; }
 
     /* ========== ИГРА ========== */
     #game-ui {
@@ -131,6 +115,19 @@
       box-shadow: 0 0 0 3px #e63946;
     }
 
+    #restart-btn {
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px;
+      background: #e63946;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(230, 57, 70, 0.4);
+    }
+
     /* ========== ЭКРАН ПОБЕДЫ ========== */
     #win-screen {
       text-align: center;
@@ -161,20 +158,13 @@
       cursor: pointer;
     }
 
-    .btn-next {
-      background: #4caf50;
-      color: white;
-    }
-
-    .btn-map {
-      background: #e63946;
-      color: white;
-    }
+    .btn-next { background: #4caf50; color: white; }
+    .btn-map { background: #e63946; color: white; }
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- ЭКРАН КАРТЫ (ЗМЕЙКА) -->
+    <!-- КАРТА -->
     <div id="map-screen" class="screen active">
       <h1>🧭 Лабиринт Конфет</h1>
       <div id="maze-path"></div>
@@ -184,10 +174,11 @@
     <div id="game-screen" class="screen">
       <div id="game-ui">
         <div>Собрано: <span id="collected">0</span>/<span id="target">30</span></div>
-        <div>Ходы: <span id="moves">30</span></div>
+        <div>Ходы: <span id="moves">45</span></div>
         <div>Ур: <span id="level-num">1</span></div>
       </div>
       <div id="game-board"></div>
+      <button id="restart-btn">🔄 Начать заново</button>
     </div>
 
     <!-- ПОБЕДА -->
@@ -202,16 +193,16 @@
 
   <script>
     // ====== НАСТРОЙКИ ======
-    const CANDIES = ['🍭', '🍬', '🍫', '🍩', '🍪', '🧁', '🍎', '🍇'];
-    const TARGETS = [30, 40, 55, 70, 90, 110, 135, 160, 190, 220]; // конфет для уничтожения
-    const BASE_MOVES = 32;
+    const CANDIES = ['🍭', '🍬', '🍫', '🍩', '🍪', '🧁'];
+    const TARGETS = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165]; // нужно уничтожить
+    const MOVES_PER_LEVEL = 45; // всегда 45 ходов
     const BOARD_SIZE = 8;
     const TOTAL_LEVELS = 10;
 
-    // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
+    // ====== ГЛОБАЛЬНЫЕ ======
     let currentLevel = 1;
     let collected = 0;
-    let movesLeft = BASE_MOVES;
+    let movesLeft = MOVES_PER_LEVEL;
     let selectedCell = null;
     let gameActive = true;
     let unlockedLevels = JSON.parse(localStorage.getItem('unlockedLevels')) || [1];
@@ -223,93 +214,93 @@
     const targetEl = document.getElementById('target');
     const movesEl = document.getElementById('moves');
     const levelNumEl = document.getElementById('level-num');
+    const restartBtn = document.getElementById('restart-btn');
     const btnNext = document.getElementById('btn-next');
     const btnMap = document.getElementById('btn-map');
 
-    // ====== КАРТА УРОВНЕЙ (ЗМЕЙКА) ======
+    // ====== КАРТА ЗМЕЙКА ======
     function drawMazeMap() {
       mazePath.innerHTML = '';
       const rows = 3;
       const cols = 4;
-      const spacingX = (mazePath.offsetWidth - 60) / (cols - 1);
-      const spacingY = (mazePath.offsetHeight - 60) / (rows - 1);
+      const w = mazePath.clientWidth;
+      const h = mazePath.clientHeight;
+      const dx = (w - 60) / (cols - 1);
+      const dy = (h - 60) / (rows - 1);
 
-      let levelIndex = 1;
-      for (let row = 0; row < rows; row++) {
-        const isReversed = row % 2 === 1; // змейка
-        const colsInRow = Math.min(TOTAL_LEVELS - (row * cols), cols);
-        for (let i = 0; i < colsInRow; i++) {
-          const col = isReversed ? cols - 1 - i : i;
-          const x = 30 + col * spacingX;
-          const y = 30 + row * spacingY;
+      let level = 1;
+      for (let r = 0; r < rows; r++) {
+        const dir = r % 2 === 0 ? 1 : -1;
+        const start = r % 2 === 0 ? 0 : cols - 1;
+        const end = r % 2 === 0 ? cols : -1;
+        for (let c = start; c !== end; c += dir) {
+          if (level > TOTAL_LEVELS) break;
+          const x = 30 + (r % 2 === 0 ? c : cols - 1 - c) * dx;
+          const y = 30 + r * dy;
 
           const node = document.createElement('div');
-          node.className = 'level-node';
-          node.textContent = levelIndex;
-
-          if (levelIndex > Math.max(...unlockedLevels)) {
-            node.classList.add('locked');
-          } else if (levelIndex === currentLevel) {
-            node.classList.add('current');
-          } else {
-            node.classList.add('unlocked');
-          }
-
+          node.className = `level-node ${level <= Math.max(...unlockedLevels) ? (level === currentLevel ? 'current' : 'unlocked') : 'locked'}`;
+          node.textContent = level;
           if (!node.classList.contains('locked')) {
-            node.addEventListener('click', () => startLevel(levelIndex));
+            node.onclick = () => startLevel(level);
           }
-
           node.style.left = (x - 22) + 'px';
           node.style.top = (y - 22) + 'px';
           mazePath.appendChild(node);
-
-          levelIndex++;
-          if (levelIndex > TOTAL_LEVELS) break;
+          level++;
         }
-        if (levelIndex > TOTAL_LEVELS) break;
+        if (level > TOTAL_LEVELS) break;
       }
     }
 
-    // ====== ЗАПУСК УРОВНЯ ======
+    // ====== ИГРА ======
     function startLevel(level) {
       currentLevel = level;
-      const target = TARGETS[Math.min(level - 1, TARGETS.length - 1)];
+      const target = TARGETS[level - 1] || TARGETS[TARGETS.length - 1];
       collected = 0;
-      movesLeft = Math.max(12, BASE_MOVES - (level - 1) * 2);
+      movesLeft = MOVES_PER_LEVEL;
 
       collectedEl.textContent = '0';
       targetEl.textContent = target;
       movesEl.textContent = movesLeft;
       levelNumEl.textContent = level;
 
-      initGameBoard();
+      initBoard();
       showScreen('game-screen');
     }
 
-    // ====== ИГРОВОЕ ПОЛЕ ======
-    function initGameBoard() {
+    function initBoard() {
       window.board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
 
       // Камни с 5 уровня
       if (currentLevel >= 5) {
-        const stoneCount = 4 + (currentLevel - 5) * 2;
+        const count = 2 * (currentLevel - 4); // 2, 4, 6...
         const positions = [];
         for (let y = 1; y < BOARD_SIZE - 1; y += 2) {
           for (let x = 1; x < BOARD_SIZE - 1; x += 2) {
-            if (positions.length < stoneCount) positions.push([x, y]);
+            if (positions.length < count) positions.push([x, y]);
           }
         }
-        for (let i = 0; i < Math.min(stoneCount, positions.length); i++) {
-          const [x, y] = positions[i];
+        for (const [x, y] of positions) {
           window.board[y][x] = '🪨';
         }
       }
 
-      // Заполняем конфетами
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
-          if (window.board[y][x] === null) {
+          if (window.board[y][x] !== '🪨') {
             window.board[y][x] = CANDIES[Math.floor(Math.random() * CANDIES.length)];
+          }
+        }
+      }
+
+      // Убираем начальные совпадения
+      while (hasMatches()) {
+        for (let y = 0; y < BOARD_SIZE; y++) {
+          for (let x = 0; x < BOARD_SIZE; x++) {
+            if (window.board[y][x] !== '🪨') {
+              window.board[y][x] = CANDIES[Math.floor(Math.random() * CANDIES.length)];
+            }
           }
         }
       }
@@ -339,8 +330,8 @@
 
     function handleCellClick(e) {
       if (!gameActive) return;
-      const x = parseInt(e.target.dataset.x);
-      const y = parseInt(e.target.dataset.y);
+      const x = +e.target.dataset.x;
+      const y = +e.target.dataset.y;
       if (window.board[y][x] === '🪨') return;
 
       if (selectedCell === null) {
@@ -360,7 +351,7 @@
           if (hasMatches()) {
             movesLeft--;
             movesEl.textContent = movesLeft;
-            setTimeout(processTurn, 300);
+            setTimeout(processTurn, 250);
             selectedCell = null;
             return;
           }
@@ -373,47 +364,40 @@
       }
 
       if (movesLeft <= 0) {
-        alert('Ходы закончились! Попробуй снова.');
-        showScreen('map-screen');
-        drawMazeMap();
+        alert('Ходы закончились! Нажмите "Начать заново".');
       }
     }
 
     function hasMatches() {
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE - 2; x++) {
-          if (window.board[y][x] !== '🪨' && 
-              window.board[y][x] === window.board[y][x+1] && 
-              window.board[y][x] === window.board[y][x+2]) {
-            return true;
-          }
+          if (window.board[y][x] !== '🪨' &&
+              window.board[y][x] === window.board[y][x+1] &&
+              window.board[y][x] === window.board[y][x+2]) return true;
         }
       }
       for (let x = 0; x < BOARD_SIZE; x++) {
         for (let y = 0; y < BOARD_SIZE - 2; y++) {
-          if (window.board[y][x] !== '🪨' && 
-              window.board[y][x] === window.board[y+1][x] && 
-              window.board[y][x] === window.board[y+2][x]) {
-            return true;
-          }
+          if (window.board[y][x] !== '🪨' &&
+              window.board[y][x] === window.board[y+1][x] &&
+              window.board[y][x] === window.board[y+2][x]) return true;
         }
       }
       return false;
     }
 
     function processTurn() {
-      let removed = 0;
       const toRemove = new Set();
 
       // Горизонтальные
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE - 2; x++) {
-          if (window.board[y][x] !== '🪨' && 
-              window.board[y][x] === window.board[y][x+1] && 
+          if (window.board[y][x] !== '🪨' &&
+              window.board[y][x] === window.board[y][x+1] &&
               window.board[y][x] === window.board[y][x+2]) {
             let end = x + 2;
             while (end + 1 < BOARD_SIZE && window.board[y][end + 1] === window.board[y][x]) end++;
-            for (let i = x; i <= end; i++) toRemove.add(`${x},${y}`);
+            for (let i = x; i <= end; i++) toRemove.add(`${i},${y}`);
             x = end;
           }
         }
@@ -422,17 +406,18 @@
       // Вертикальные
       for (let x = 0; x < BOARD_SIZE; x++) {
         for (let y = 0; y < BOARD_SIZE - 2; y++) {
-          if (window.board[y][x] !== '🪨' && 
-              window.board[y][x] === window.board[y+1][x] && 
+          if (window.board[y][x] !== '🪨' &&
+              window.board[y][x] === window.board[y+1][x] &&
               window.board[y][x] === window.board[y+2][x]) {
             let end = y + 2;
             while (end + 1 < BOARD_SIZE && window.board[end + 1][x] === window.board[y][x]) end++;
-            for (let i = y; i <= end; i++) toRemove.add(`${x},${y}`);
+            for (let i = y; i <= end; i++) toRemove.add(`${x},${i}`);
             y = end;
           }
         }
       }
 
+      let removed = 0;
       toRemove.forEach(pos => {
         const [x, y] = pos.split(',').map(Number);
         if (window.board[y][x] !== '🪨') {
@@ -443,7 +428,7 @@
 
       collected += removed;
       collectedEl.textContent = collected;
-      const target = TARGETS[Math.min(currentLevel - 1, TARGETS.length - 1)];
+      const target = TARGETS[currentLevel - 1] || TARGETS[TARGETS.length - 1];
       if (collected >= target) {
         completeLevel();
         return;
@@ -470,13 +455,13 @@
 
       renderBoard();
       if (hasMatches()) {
-        setTimeout(processTurn, 300);
+        setTimeout(processTurn, 250);
       }
     }
 
     function completeLevel() {
       gameActive = false;
-      if (currentLevel + 1 <= TOTAL_LEVELS && !unlockedLevels.includes(currentLevel + 1)) {
+      if (currentLevel < TOTAL_LEVELS && !unlockedLevels.includes(currentLevel + 1)) {
         unlockedLevels.push(currentLevel + 1);
         localStorage.setItem('unlockedLevels', JSON.stringify(unlockedLevels));
       }
@@ -489,22 +474,14 @@
       document.getElementById(id).classList.add('active');
     }
 
-    btnNext.addEventListener('click', () => {
-      if (currentLevel < TOTAL_LEVELS) {
-        startLevel(currentLevel + 1);
-      } else {
-        alert('Поздравляем! Вы прошли весь лабиринт!');
-        showScreen('map-screen');
-        drawMazeMap();
-      }
-    });
-
-    btnMap.addEventListener('click', () => {
+    restartBtn.onclick = () => startLevel(currentLevel);
+    btnNext.onclick = () => startLevel(currentLevel + 1);
+    btnMap.onclick = () => {
       showScreen('map-screen');
       drawMazeMap();
-    });
+    };
 
-    // ====== СТАРТ ======
+    // Старт
     drawMazeMap();
   </script>
 </body>
