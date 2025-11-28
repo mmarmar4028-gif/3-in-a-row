@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>3 в ряд: Монетки</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: none;
+    }
+
+    body {
+      background: #f9f9f9;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    #ui {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      color: #c00;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 2px;
+      background: #e0e0e0;
+      padding: 4px;
+      border-radius: 8px;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+    }
+
+    .cell {
+      background: white;
+      border-radius: 6px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+      position: relative;
+    }
+
+    .cell.coin::before {
+      content: "🪙";
+      font-size: 24px;
+    }
+
+    .cell.bomb::before {
+      content: "💣";
+      font-size: 20px;
+    }
+
+    .cell.arrow-h::before,
+    .cell.arrow-v::before {
+      content: "➡️";
+      font-size: 20px;
+    }
+
+    .cell.arrow-v::before {
+      content: "⬇️";
+    }
+
+    .cell.rainbow::before {
+      content: "🌟";
+      font-size: 20px;
+    }
+
+    .cell.selected {
+      transform: scale(0.92);
+      box-shadow: 0 0 0 2px #e63946;
+    }
+
+    #restart-btn {
+      background: #e63946;
+      color: white;
+      border: none;
+      border-radius: 24px;
+      padding: 10px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(230, 57, 70, 0.4);
+      transition: background 0.2s;
+    }
+
+    #restart-btn:hover {
+      background: #d90429;
+    }
+
+    .cell.matched {
+      opacity: 0.3;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="ui">
+      <div>Ходы: <span id="moves">30</span></div>
+      <div>Уровень: <span id="level">1</span></div>
+    </div>
+    <div id="game-board"></div>
+    <button id="restart-btn">🔄 Новая игра</button>
+  </div>
+
+  <script>
+    const COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+    const BOARD_SIZE = 8;
+    const INITIAL_MOVES = 30;
+
+    let board = [];
+    let movesLeft = INITIAL_MOVES;
+    let level = 1;
+    let selectedCell = null;
+    let gameActive = true;
+
+    const boardEl = document.getElementById('game-board');
+    const movesEl = document.getElementById('moves');
+    const levelEl = document.getElementById('level');
+    const restartBtn = document.getElementById('restart-btn');
+
+    // Инициализация доски
+    function initBoard() {
+      board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
+      fillBoard();
+      while (hasMatches()) {
+        removeMatches();
+        dropCoins();
+        fillBoard();
+      }
+      renderBoard();
+    }
+
+    // Заполнение доски случайными монетками
+    function fillBoard() {
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+          if (board[y][x] === null) {
+            board[y][x] = { type: 'coin', color: COLORS[Math.floor(Math.random() * COLORS.length)] };
+          }
+        }
+      }
+    }
+
+    // Проверка на совпадения
+    function hasMatches() {
+      const matches = findMatches();
+      return matches.length > 0;
+    }
+
+    // Поиск всех совпадений
+    function findMatches() {
+      const matches = [];
+
+      // Горизонтальные
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        let count = 1;
+        let currentColor = board[y][0]?.color;
+        let start = 0;
+        for (let x = 1; x < BOARD_SIZE; x++) {
+          if (board[y][x]?.color === currentColor && board[y][x]?.type === 'coin') {
+            count++;
+          } else {
+            if (count >= 3) {
+              matches.push({ start: [start, y], end: [x - 1, y], dir: 'h', count });
+            }
+            count = 1;
+            start = x;
+            currentColor = board[y][x]?.color;
+          }
+        }
+        if (count >= 3) {
+          matches.push({ start: [start, y], end: [BOARD_SIZE - 1, y], dir: 'h', count });
+        }
+      }
+
+      // Вертикальные
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        let count = 1;
+        let currentColor = board[0][x]?.color;
+        let start = 0;
+        for (let y = 1; y < BOARD_SIZE; y++) {
+          if (board[y][x]?.color === currentColor && board[y][x]?.type === 'coin') {
+            count++;
+          } else {
+            if (count >= 3) {
+              matches.push({ start: [x, start], end: [x, y - 1], dir: 'v', count });
+            }
+            count = 1;
+            start = y;
+            currentColor = board[y][x]?.color;
+          }
+        }
+        if (count >= 3) {
+          matches.push({ start: [x, start], end: [x, BOARD_SIZE - 1], dir: 'v', count });
+        }
+      }
+
+      return matches;
+    }
+
+    // Обнаружение квадратов 2x2
+    function findSquares() {
+      const squares = [];
+      for (let y = 0; y < BOARD_SIZE - 1; y++) {
+        for (let x = 0; x < BOARD_SIZE - 1; x++) {
+          const c = board[y][x]?.color;
+          if (
+            c &&
+            board[y][x + 1]?.color === c &&
+            board[y + 1][x]?.color === c &&
+            board[y + 1][x + 1]?.color === c &&
+            board[y][x].type === 'coin' &&
+            board[y][x + 1].type === 'coin' &&
+            board[y + 1][x].type === 'coin' &&
+            board[y + 1][x + 1].type === 'coin'
+          ) {
+            squares.push({ x, y, color: c });
+          }
+        }
+      }
+      return squares;
+    }
+
+    // Удаление совпадений и создание спец. элементов
+    function removeMatches() {
+      const matches = findMatches();
+      const squares = findSquares();
+
+      // Маркируем все совпадающие как удалённые
+      const toRemove = new Set();
+      for (const match of matches) {
+        const [sx, sy] = match.start;
+        const [ex, ey] = match.end;
+        if (match.dir === 'h') {
+          for (let x = sx; x <= ex; x++) toRemove.add(`${x},${sy}`);
+        } else {
+          for (let y = sy; y <= ey; y++) toRemove.add(`${sx},${y}`);
+        }
+      }
+
+      // Убираем квадраты из общего удаления (они станут бомбами)
+      for (const sq of squares) {
+        const cells = [
+          `${sq.x},${sq.y}`,
+          `${sq.x + 1},${sq.y}`,
+          `${sq.x},${sq.y + 1}`,
+          `${sq.x + 1},${sq.y + 1}`
+        ];
+        cells.forEach(c => toRemove.delete(c));
+        // Создаём бомбу на месте квадрата
+        board[sq.y][sq.x] = { type: 'bomb', color: sq.color };
+      }
+
+      // Создание стрелок (4 в ряд)
+      for (const match of matches) {
+        if (match.count === 4) {
+          const [sx, sy] = match.start;
+          const [ex, ey] = match.end;
+          const midX = Math.floor((sx + ex) / 2);
+          const midY = Math.floor((sy + ey) / 2);
+          toRemove.delete(`${midX},${midY}`);
+          board[midY][midX] = {
+            type: match.dir === 'h' ? 'arrow-h' : 'arrow-v',
+            color: board[sy][sx]?.color
+          };
+        }
+      }
+
+      // Создание радужной монетки (5+)
+      for (const match of matches) {
+        if (match.count >= 5) {
+          const [sx, sy] = match.start;
+          const [ex, ey] = match.end;
+          const midX = Math.floor((sx + ex) / 2);
+          const midY = Math.floor((sy + ey) / 2);
+          toRemove.delete(`${midX},${midY}`);
+          board[midY][midX] = { type: 'rainbow', color: null };
+        }
+      }
+
+      // Удаляем остальные
+      toRemove.forEach(pos => {
+        const [x, y] = pos.split(',').map(Number);
+        board[y][x] = null;
+      });
+    }
+
+    // Падение монеток
+    function dropCoins() {
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        let writeIndex = BOARD_SIZE - 1;
+        for (let y = BOARD_SIZE - 1; y >= 0; y--) {
+          if (board[y][x] !== null) {
+            if (writeIndex !== y) {
+              board[writeIndex][x] = board[y][x];
+              board[y][x] = null;
+            }
+            writeIndex--;
+          }
+        }
+      }
+    }
+
+    // Рендер доски
+    function renderBoard() {
+      boardEl.innerHTML = '';
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          const item = board[y][x];
+          if (item) {
+            cell.classList.add(item.type);
+            if (item.color) cell.style.backgroundColor = item.color;
+          }
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          cell.addEventListener('click', () => handleCellClick(x, y));
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    // Обработка клика
+    function handleCellClick(x, y) {
+      if (!gameActive) return;
+
+      const cell = board[y][x];
+      if (!cell) return;
+
+      if (selectedCell === null) {
+        selectedCell = { x, y };
+        document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`).classList.add('selected');
+      } else {
+        const { x: x1, y: y1 } = selectedCell;
+        document.querySelector(`.cell[data-x="${x1}"][data-y="${y1}"]`).classList.remove('selected');
+
+        // Проверяем, соседние ли
+        const dx = Math.abs(x - x1);
+        const dy = Math.abs(y - y1);
+        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+          // Обмен
+          [board[y][x], board[y1][x1]] = [board[y1][x1], board[y][x]];
+          renderBoard();
+
+          if (hasMatches()) {
+            movesLeft--;
+            movesEl.textContent = movesLeft;
+            processTurn();
+          } else {
+            // Откат
+            [board[y][x], board[y1][x1]] = [board[y1][x1], board[y][x]];
+            renderBoard();
+          }
+        }
+        selectedCell = null;
+      }
+
+      if (movesLeft <= 0) {
+        gameActive = false;
+        alert(`Игра окончена! Уровень: ${level}`);
+      }
+    }
+
+    // Обработка хода: удаление, падение, заполнение
+    function processTurn() {
+      setTimeout(() => {
+        removeMatches();
+        renderBoard();
+
+        setTimeout(() => {
+          dropCoins();
+          fillBoard();
+          renderBoard();
+
+          if (hasMatches()) {
+            setTimeout(processTurn, 300);
+          } else if (movesLeft > 0) {
+            // Проверка, есть ли возможные ходы
+            if (!hasAnyValidMove()) {
+              fillBoard();
+              renderBoard();
+              if (hasMatches()) {
+                setTimeout(processTurn, 300);
+              }
+            }
+          }
+        }, 300);
+      }, 300);
+    }
+
+    // Проверка наличия хотя бы одного валидного хода
+    function hasAnyValidMove() {
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+          // Вправо
+          if (x < BOARD_SIZE - 1) {
+            [board[y][x], board[y][x + 1]] = [board[y][x + 1], board[y][x]];
+            const hasMatch = hasMatches();
+            [board[y][x], board[y][x + 1]] = [board[y][x + 1], board[y][x]];
+            if (hasMatch) return true;
+          }
+          // Вниз
+          if (y < BOARD_SIZE - 1) {
+            [board[y][x], board[y + 1][x]] = [board[y + 1][x], board[y][x]];
+            const hasMatch = hasMatches();
+            [board[y][x], board[y + 1][x]] = [board[y + 1][x], board[y][x]];
+            if (hasMatch) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    // Инициализация игры
+    function startGame() {
+      level = 1;
+      movesLeft = INITIAL_MOVES;
+      gameActive = true;
+      selectedCell = null;
+      levelEl.textContent = level;
+      movesEl.textContent = movesLeft;
+      initBoard();
+    }
+
+    restartBtn.addEventListener('click', startGame);
+    startGame();
+  </script>
+</body>
+</html>
